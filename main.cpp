@@ -7,6 +7,16 @@
 
 #include <cxxopts.hpp>
 
+typedef std::vector<std::vector<double>> DoubleGrid;
+
+DoubleGrid CreateDoubleGrid(size_t width, size_t height) {
+    DoubleGrid retVal(height);
+    for( size_t i = 0; i < height; i++ ){
+        retVal[i].resize(width);
+    }
+    return retVal;
+}
+
 struct Index {
     int x, y;
 
@@ -22,14 +32,11 @@ struct Particle{
 struct Field {
     unsigned int Width, Height;
     double dx, dy;
-    std::vector<std::vector<double>> data;
+    DoubleGrid data;
     std::vector<std::vector<std::pair<double,double>>> steps;
 
     Field(unsigned int width, unsigned int height, double xLength, double yLength) : Width(width), Height(height) {
-        data.resize(height);
-        for( size_t i = 0; i < height; i++ ){
-            data[i].resize(width);
-        }
+        data = CreateDoubleGrid(width, height);
 
         dx = xLength/(width-1);
         dy = yLength/(height-1);
@@ -51,7 +58,6 @@ struct Field {
 int main( int argc, char* argv[] ) {
     std::string sVelocity;
     unsigned int FieldWidth, FieldHeight, GridScale, Particles, TimeSteps = 1;
-    std::vector<std::vector<double>> U, V;
     double TimeStep = 0.01;
 
     cxxopts::Options options(argv[0]);
@@ -78,16 +84,9 @@ int main( int argc, char* argv[] ) {
     std::random_device rd;
     std::mt19937_64 gen(rd());
 
-    // Resize Velocity Fields
-    U.resize(FieldHeight * GridScale);
-    for( size_t i = 0; i < FieldHeight * GridScale; i++ ){
-        U[i].resize(FieldWidth * GridScale);
-    }
-
-    V.resize(FieldHeight * GridScale);
-    for( size_t i = 0; i < FieldHeight * GridScale; i++ ){
-        V[i].resize(FieldWidth * GridScale);
-    }
+    // Setup Velocity Fields
+    DoubleGrid U = CreateDoubleGrid(FieldWidth * GridScale, FieldHeight * GridScale);
+    DoubleGrid V = CreateDoubleGrid(FieldWidth * GridScale, FieldHeight * GridScale);
 
     // Parse Velocity File
     std::ifstream fVelocity(sVelocity, std::ifstream::in);
@@ -143,6 +142,28 @@ int main( int argc, char* argv[] ) {
     mParticleA[8].y = 0.4078;
     mParticleA[9].y = 0.9763;
 
+    mParticleB[0].x = 6.683352434689608;
+    mParticleB[1].x = 8.307203074836540;
+    mParticleB[2].x = 1.146952769896913;
+    mParticleB[3].x = 2.803967363212206;
+    mParticleB[4].x = 7.463246470539689;
+    mParticleB[5].x = 4.570490854194263;
+    mParticleB[6].x = 6.478712945735252;
+    mParticleB[7].x = 8.659819362606868;
+    mParticleB[8].x = 1.663233636699968;
+    mParticleB[9].x = 7.272637561834018;
+
+    mParticleB[0].y = 0.193934956352039;
+    mParticleB[1].y = 0.410571125591421;
+    mParticleB[2].y = 0.040404841745219;
+    mParticleB[3].y = 0.903354372755528;
+    mParticleB[4].y = 0.729667599112814;
+    mParticleB[5].y = 0.245990568047725;
+    mParticleB[6].y = 0.835649541816172;
+    mParticleB[7].y = 0.341178356375825;
+    mParticleB[8].y = 0.744876002240049;
+    mParticleB[9].y = 0.955182389042570;
+
     /*for( size_t i = 0; i < Particles; i++ ){
         mParticleA[i].x = FieldWidth * mRandom(gen);
         mParticleA[i].y = FieldHeight * mRandom(gen);
@@ -163,14 +184,17 @@ int main( int argc, char* argv[] ) {
         CountB[i].resize(2 * FieldWidth);
     }
 
-    std::vector<std::vector<double>> CountAS((2 * FieldHeight)-1), CountBS((2 * FieldHeight)-1);
-    for( size_t i = 0; i < (2 * FieldHeight)-1; i++ ){
-        CountAS[i].resize((2 * FieldWidth)-1);
-        CountBS[i].resize((2 * FieldWidth)-1);
-    }
+    DoubleGrid CountAS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
+    DoubleGrid CountBS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
 
     // Create Velocity Grid
     Field Velocity(U[0].size(), U.size(), FieldWidth, FieldHeight);
+
+    // Create Statistics Grids
+    DoubleGrid DiffSquared = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
+
+    std::vector<double> MeanU2(TimeSteps);
+    std::vector<double> MeanCA(TimeSteps);
 
     // Calculate Steps
     for( size_t step = 0; step < TimeSteps; step++ ){
@@ -216,5 +240,34 @@ int main( int argc, char* argv[] ) {
 
             B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
         }
+
+        for( size_t i = 0; i < CountAS.size(); i++ ){
+            for( size_t j = 0; j < CountAS[0].size(); j++ ){
+                CountAS[i][j] = (CountA[i+1][j] * ParticleMass) / (Concentration.dx * Concentration.dy);
+                CountBS[i][j] = (CountB[i+1][j] * ParticleMass) / (Concentration.dx * Concentration.dy);
+            }
+        }
+
+        double U2Mean = 0.0;
+        for( size_t i = 0; i < CountAS.size(); i++ ){
+            double PartMean = 0.0;
+            for( size_t j = 0; j < CountAS[0].size(); j++ ){
+                PartMean += std::pow(CountAS[i][j] - CountBS[i][j], 2);
+            }
+            U2Mean += PartMean / CountAS[0].size();
+        }
+        MeanU2[step] = U2Mean / CountAS.size();
+
+        double CAMean = 0.0;
+        for( size_t i = 0; i < CountAS.size(); i++ ){
+            double PartMean = 0.0;
+            for( size_t j = 0; j < CountAS[0].size(); j++ ){
+                PartMean += CountAS[i][j];
+            }
+            CAMean += PartMean / CountAS[0].size();
+        }
+        MeanCA[step] = CAMean / CountAS.size();
+
+        std::cout << MeanU2[step] << " " << MeanCA[step] << std::endl;
     }
 }
