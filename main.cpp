@@ -8,9 +8,9 @@
 #include <cxxopts.hpp>
 
 struct Index {
-    unsigned int x, y;
+    int x, y;
 
-    Index(unsigned int x, unsigned int y) : x(x), y(y) {
+    Index(int x, int y) : x(x), y(y) {
 
     }
 };
@@ -23,6 +23,7 @@ struct Field {
     unsigned int Width, Height;
     double dx, dy;
     std::vector<std::vector<double>> data;
+    std::vector<std::vector<std::pair<double,double>>> steps;
 
     Field(unsigned int width, unsigned int height, double xLength, double yLength) : Width(width), Height(height) {
         data.resize(height);
@@ -32,6 +33,14 @@ struct Field {
 
         dx = xLength/(width-1);
         dy = yLength/(height-1);
+
+        steps.resize(height);
+        for( size_t i = 0; i < height; i++ ){
+            steps[i].resize(width);
+            for( size_t j = 0; j < width; j++ ){
+                steps[i][j] = std::make_pair(j * dx, (height-i-1) * dy);
+            }
+        }
     }
 
     const Index GetIndex(Particle &p) {
@@ -112,7 +121,29 @@ int main( int argc, char* argv[] ) {
     // Setup Particles
     std::vector<Particle> mParticleA(Particles), mParticleB(Particles);
 
-    for( size_t i = 0; i < Particles; i++ ){
+    mParticleA[0].x = 6.9234;
+    mParticleA[1].x = 4.3310;
+    mParticleA[2].x = 4.2018;
+    mParticleA[3].x = 1.4481;
+    mParticleA[4].x = 5.1285;
+    mParticleA[5].x = 8.0339;
+    mParticleA[6].x = 9.3188;
+    mParticleA[7].x = 6.4324;
+    mParticleA[8].x = 5.5442;
+    mParticleA[9].x = 1.1989;
+
+    mParticleA[0].y = 0.1467;
+    mParticleA[1].y = 0.1462;
+    mParticleA[2].y = 0.9986;
+    mParticleA[3].y = 0.0473;
+    mParticleA[4].y = 0.6285;
+    mParticleA[5].y = 0.6246;
+    mParticleA[6].y = 0.2868;
+    mParticleA[7].y = 0.2002;
+    mParticleA[8].y = 0.4078;
+    mParticleA[9].y = 0.9763;
+
+    /*for( size_t i = 0; i < Particles; i++ ){
         mParticleA[i].x = FieldWidth * mRandom(gen);
         mParticleA[i].y = FieldHeight * mRandom(gen);
         mParticleA[i].mass = ParticleMass;
@@ -120,7 +151,7 @@ int main( int argc, char* argv[] ) {
         mParticleB[i].x = FieldWidth * mRandom(gen);
         mParticleB[i].y = FieldHeight * mRandom(gen);
         mParticleB[i].mass = ParticleMass;
-    }
+    }*/
 
     // Create Concentration Grid
     Field Concentration(2 * FieldWidth, 2 * FieldHeight, FieldWidth, FieldHeight);
@@ -132,6 +163,16 @@ int main( int argc, char* argv[] ) {
         CountB[i].resize(2 * FieldWidth);
     }
 
+    std::vector<std::vector<double>> CountAS((2 * FieldHeight)-1), CountBS((2 * FieldHeight)-1);
+    for( size_t i = 0; i < (2 * FieldHeight)-1; i++ ){
+        CountAS[i].resize((2 * FieldWidth)-1);
+        CountBS[i].resize((2 * FieldWidth)-1);
+    }
+
+    // Create Velocity Grid
+    Field Velocity(U[0].size(), U.size(), FieldWidth, FieldHeight);
+
+    // Calculate Steps
     for( size_t step = 0; step < TimeSteps; step++ ){
         std::cout << "Step " << step << std::endl;
 
@@ -150,7 +191,30 @@ int main( int argc, char* argv[] ) {
         }
 
         // Interpolate Velocities
+        const std::vector<std::vector<std::pair<double,double>>>& Grid = Velocity.steps;
+
         for( size_t particle = 0; particle < Particles; particle++ ){
+            Particle& A = mParticleA[particle];
+            const Index posA = Velocity.GetIndex(A);
+            Index posA2(posA.x+1, posA.y-1);
+
+            if (posA2.x == Velocity.Width) posA2.x = 1;
+            if (posA2.y == -1) posA2.y = Velocity.Height-1;
+
+            A.u = ((Grid[1][posA2.x].first - A.x) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA.x] + (Grid[1][posA2.x].first - A.x) *(Grid[posA2.y][1].second - A.y) * U[posA.y][posA.x] + (A.x - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - A.y) *U[posA.y][posA2.x] + (A.x - Grid[1][posA.x].first) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA2.x]) / ((Grid[1][posA2.x].first - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - Grid[posA.y][1].second));
+
+            A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
+
+            Particle& B = mParticleB[particle];
+            const Index posB = Velocity.GetIndex(B);
+            Index posB2(posB.x+1, posB.y-1);
+
+            if (posB2.x == Velocity.Width) posB2.x = 1;
+            if (posB2.y == -1) posB2.y = Velocity.Height-1;
+
+            B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
+
+            B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
         }
     }
 }
