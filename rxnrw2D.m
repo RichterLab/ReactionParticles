@@ -6,7 +6,7 @@
 
 function rxnrw2D(u,v,filename)
 
-N = 5000;  % Initial Number of A (and B) Particles (Total number of particles = 2N)
+N = 10;  % Initial Number of A (and B) Particles (Total number of particles = 2N)
 
 D = 1e-5;     %Diffusion coefficient of A
 
@@ -32,11 +32,11 @@ xB = Lx*rand(1,N);  %initial distribution of B particles
 yA = Ly*rand(1,N);  %initial disribution of A particles
 yB = Ly*rand(1,N);  %initial distribution of B particles
 
-Nsteps = 10;   %number of timesteps
+Nsteps = 1;   %number of timesteps
 
 %%%%%%%%%%CONCENTRATION GRID%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Ngridx = 500*Lx;     %number of gridpoints in x
-Ngridy = 500*Ly;     %number of gridpoints in y
+Ngridx = 2*Lx;     %number of gridpoints in x
+Ngridy = 2*Ly;     %number of gridpoints in y
 
 Ngridbox_x = Ngridx-1; %there are Ngrid-1 grid cells in each direction (Ngrid points)
 Ngridbox_y = Ngridy-1;
@@ -86,21 +86,21 @@ for kk=1:Nsteps
     uB = zeros(szxA);
     vA = zeros(szxA);
     vB = zeros(szxA);
-    
+
     xBtemp = xB;
     yBtemp = yB;
-    
+
     countA = zeros(Ngridy,Ngridx);
     countB = zeros(Ngridy,Ngridx);
 
     %bilinear interpolation to grid
     for ii=1:length(xA)
-        
+
         xAnow = xA(ii);
         yAnow = yA(ii);
         xBnow = xBtemp(ii);
         yBnow = yBtemp(ii);
-        
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%%CONCENTRATION GRID%%%%%%%%%
         %find out which gridbox each particle is in
@@ -114,11 +114,11 @@ for kk=1:Nsteps
         idx1yA = Ngridy-rnddownyA;      %lower y index
         idx1xB = rnddownxB+1;           %lower x index
         idx1yB = Ngridy-rnddownyB;      %lower y index
-        
+
         %calculates the number of A and B particles in each gridbox
         countA(idx1yA,idx1xA) = countA(idx1yA,idx1xA)+1; %add one because 0 is the first index
         countB(idx1yB,idx1xB) = countB(idx1yB,idx1xB)+1;
-        
+
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%%VELOCITY GRID%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %find out which gridbox each particle is in
@@ -139,7 +139,7 @@ for kk=1:Nsteps
         idx2yB_vel = Ngridy_vel-rnddownyB_vel-1;    %upper y index
 
         %account for periodicity
-        if idx2xA_vel==Ngridx_vel+1; 
+        if idx2xA_vel==Ngridx_vel+1;
             idx2xA_vel=1;
         end
         if idx2xB_vel==Ngridx_vel+1;
@@ -177,25 +177,25 @@ for kk=1:Nsteps
                 +(xBnow-xgrid_vel(1,idx1xB_vel))*(ygrid_vel(idx2yB_vel,1)-yBnow)*v(idx1yB_vel,idx2xB_vel)...
                 +(xBnow-xgrid_vel(1,idx1xB_vel))*(yBnow-ygrid_vel(idx1yB_vel,1))*v(idx2yB_vel,idx2xB_vel))...
                 /((xgrid_vel(1,idx2xB_vel)-xgrid_vel(1,idx1xB_vel))*(ygrid_vel(idx2yB_vel,1)-ygrid_vel(idx1yB_vel,1)));
-            
-         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
-            
+
+         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     end
-    
+
     %remove row and column of zeros in countA and countB
     countA = countA(2:end,1:end-1);
     countB = countB(2:end,1:end-1);
-    
+
     CA = countA*mp/(dx*dy);
     CB = countB*mp/(dx*dy);
-    
+
     U = CA-CB;
     U2 = U.^2;
-    
+
     meanU2(kk) = mean(mean(U2));
     meanCA(kk) = mean(mean(CA));
 
-       
+
     %Random Walk part - update the location of particles x and y by a Brownian motion
     xA = xA+uA*dt+sqrt(2*D*dt)*randn(szxA);
     xB = xB+uB*dt+sqrt(2*D*dt)*randn(szxA);
@@ -221,7 +221,7 @@ for kk=1:Nsteps
 
     %RXN
     rxn_cycle2D    %uses kd-tree to search particles more quickly
-    
+
 
     %calculate the concentration at a given time
     conc(kk+1) = length(xA)*mp/(Lx*Ly);  %conc = num part/domain volume = num part/(L^2) = num part
@@ -231,7 +231,7 @@ end
 
 %renormalize concentration to 1 at t=0;
 conc=conc/N;     %normalize by initial conc
-    
+
 save([filename,'.mat'],'conc','meanU2','meanCA','time');
 
 %plot concentration against time
