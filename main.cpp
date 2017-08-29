@@ -28,6 +28,42 @@ struct Index {
 struct Particle{
     bool Alive;
     double x, y, u, v, mass;
+
+    double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
+        const double xDiff = b.x - x;
+        const double yDiff = b.y - y;
+
+        std::vector<double> results;
+
+        // Center
+        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0)) );
+
+        // Bottom Left
+        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+
+        // Bottom
+        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+
+        // Bottom Right
+        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+
+        // Left
+        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0)) );
+
+        // Right
+        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0)) );
+
+        // Top Left
+        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+
+        // Top
+        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+
+        // Top Right
+        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+
+        return *std::min_element( results.begin(), results.end() );
+    }
 };
 
 struct Field {
@@ -303,8 +339,28 @@ int main( int argc, char* argv[] ) {
         }
 
         // Calculate Reactions
-        for( size_t particle = 0; particle < Particles; particle++ ){
+        for( size_t a = 0; a < Particles; a++ ){
+            std::vector<double> ReactionChance(Particles);
+            for( size_t b = 0; b < Particles; b++ ){
+                const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
+                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(std::pow(-distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                const double random = probability - mRandom(gen);
 
+                ReactionChance[b] = random;
+            }
+
+            size_t index = 0; double maximum = 0;
+            for( size_t b = 0; b < Particles; b++ ){
+                if( ReactionChance[b] > maximum ){
+                    index = b;
+                    maximum = ReactionChance[b];
+                }
+            }
+
+            if( ReactionChance[index] > 0 ) {
+                mParticleA[a].Alive = false;
+                mParticleB[a].Alive = false;
+            }
         }
     }
 }
