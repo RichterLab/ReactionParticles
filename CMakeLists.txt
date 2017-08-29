@@ -11,6 +11,7 @@ set (CMAKE_CXX_STANDARD 11)
 
 # Build Executable
 add_executable (reaction-particle "main.cpp")
+include_directories(".")
 install ( TARGETS reaction-particle RUNTIME DESTINATION "bin")
 
 option( BUILD_TESTS "Build tests" OFF)
