@@ -25,12 +25,56 @@ Pr = k*mp*dt;     %probability of reaction
 Pr_max = k*mp/8/pi/D;  %maximum probability of reaction (when s=0)
                        %need to make sure this number isn't too high
 
-rng('shuffle')
+rng(1234)
 
 xA = Lx*rand(1,N);  %initial disribution of A particles at locations (xA,yA)
 xB = Lx*rand(1,N);  %initial distribution of B particles
 yA = Ly*rand(1,N);  %initial disribution of A particles
 yB = Ly*rand(1,N);  %initial distribution of B particles
+
+xA(1) = 6.9234;
+xA(2) = 4.3310;
+xA(3) = 4.2018;
+xA(4) = 1.4481;
+xA(5) = 5.1285;
+xA(6) = 8.0339;
+xA(7) = 9.3188;
+xA(8) = 6.4324;
+xA(9) = 5.5442;
+xA(10) = 1.1989;
+
+yA(1) = 0.1467;
+yA(2) = 0.1462;
+yA(3) = 0.9986;
+yA(4) = 0.0473;
+yA(5) = 0.6285;
+yA(6) = 0.6246;
+yA(7) = 0.2868;
+yA(8) = 0.2002;
+yA(9) = 0.4078;
+yA(10) = 0.9763;
+
+xB(1) = 6.683352434689608;
+xB(2) = 8.307203074836540;
+xB(3) = 1.146952769896913;
+xB(4) = 2.803967363212206;
+xB(5) = 7.463246470539689;
+xB(6) = 4.570490854194263;
+xB(7) = 6.478712945735252;
+xB(8) = 8.659819362606868;
+xB(9) = 1.663233636699968;
+xB(10) = 7.272637561834018;
+
+yB(1) = 0.193934956352039;
+yB(2) = 0.410571125591421;
+yB(3) = 0.040404841745219;
+yB(4) = 0.903354372755528;
+yB(5) = 0.729667599112814;
+yB(6) = 0.245990568047725;
+yB(7) = 0.835649541816172;
+yB(8) = 0.341178356375825;
+yB(9) = 0.744876002240049;
+yB(10) = 0.955182389042570;
 
 Nsteps = 1;   %number of timesteps
 
@@ -52,9 +96,6 @@ dy = ygrid(1,1) - ygrid(2,1);
 size_vel = size(u);
 Ngridx_vel = size_vel(2);     %number of gridpoints in x
 Ngridy_vel = size_vel(1);     %number of gridpoints in y
-
-Ngridbox_x_vel = Ngridx_vel-1; %there are Ngrid-1 grid cells in each direction (Ngrid points)
-Ngridbox_y_vel = Ngridy_vel-1;
 
 %create grid - make (0,0) position bottom left corner
 xgrid_vel = repmat(linspace(0,Lx,Ngridx_vel),Ngridy_vel,1); %create grid of x positions (Ngrid x Ngrid)
@@ -86,6 +127,7 @@ for kk=1:Nsteps
     uB = zeros(szxA);
     vA = zeros(szxA);
     vB = zeros(szxA);
+    part = zeros(szxA);
 
     xBtemp = xB;
     yBtemp = yB;
@@ -195,13 +237,22 @@ for kk=1:Nsteps
     meanU2(kk) = mean(mean(U2));
     meanCA(kk) = mean(mean(CA));
 
-
     %Random Walk part - update the location of particles x and y by a Brownian motion
-    xA = xA+uA*dt+sqrt(2*D*dt)*randn(szxA);
-    xB = xB+uB*dt+sqrt(2*D*dt)*randn(szxA);
+    part = randn(szxA);
+    part
+    xA = xA+uA*dt+sqrt(2*D*dt)*part;
 
-    yA = yA+vA*dt+sqrt(2*D*dt)*randn(szxA);
-    yB = yB+vB*dt+sqrt(2*D*dt)*randn(szxA);
+    part = randn(szxA);
+    part
+    xB = xB+uB*dt+sqrt(2*D*dt)*part;
+
+    part = randn(szxA);
+    part
+    yA = yA+vA*dt+sqrt(2*D*dt)*part;
+
+    part = randn(szxA);
+    part
+    yB = yB+vB*dt+sqrt(2*D*dt)*part;
 
     xA = mod(xA,Lx);  %periodic boundary
     xB = mod(xB,Lx);
@@ -236,12 +287,12 @@ save([filename,'.mat'],'conc','meanU2','meanCA','time');
 
 %plot concentration against time
 
- figure(1)
- plot(time,conc(1:length(time)),'k')
- set(gca,'Xscale','log','Yscale','log')
- hold on
- plot(time,1./(1+k*C0*time),'r')
- legend('rxnrw','well-mixed')
- xlabel('time')
- ylabel('concentration')
+ %figure(1)
+ %plot(time,conc(1:length(time)),'k')
+ %set(gca,'Xscale','log','Yscale','log')
+ %hold on
+ %plot(time,1./(1+k*C0*time),'r')
+ %legend('rxnrw','well-mixed')
+ %xlabel('time')
+ %ylabel('concentration')
 end

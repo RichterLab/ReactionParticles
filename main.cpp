@@ -26,6 +26,7 @@ struct Index {
 };
 
 struct Particle{
+    bool Alive;
     double x, y, u, v, mass;
 };
 
@@ -164,15 +165,16 @@ int main( int argc, char* argv[] ) {
     mParticleB[8].y = 0.744876002240049;
     mParticleB[9].y = 0.955182389042570;
 
-    /*for( size_t i = 0; i < Particles; i++ ){
-        mParticleA[i].x = FieldWidth * mRandom(gen);
+    for( size_t i = 0; i < Particles; i++ ){
+        mParticleA[i].Alive = true;
+        mParticleB[i].Alive = true;
+        /*mParticleA[i].x = FieldWidth * mRandom(gen);
         mParticleA[i].y = FieldHeight * mRandom(gen);
-        mParticleA[i].mass = ParticleMass;
 
         mParticleB[i].x = FieldWidth * mRandom(gen);
         mParticleB[i].y = FieldHeight * mRandom(gen);
-        mParticleB[i].mass = ParticleMass;
-    }*/
+        */
+    }
 
     // Create Concentration Grid
     Field Concentration(2 * FieldWidth, 2 * FieldHeight, FieldWidth, FieldHeight);
@@ -218,6 +220,7 @@ int main( int argc, char* argv[] ) {
         const std::vector<std::vector<std::pair<double,double>>>& Grid = Velocity.steps;
 
         for( size_t particle = 0; particle < Particles; particle++ ){
+            // Interpolate Particle A
             Particle& A = mParticleA[particle];
             const Index posA = Velocity.GetIndex(A);
             Index posA2(posA.x+1, posA.y-1);
@@ -226,9 +229,9 @@ int main( int argc, char* argv[] ) {
             if (posA2.y == -1) posA2.y = Velocity.Height-1;
 
             A.u = ((Grid[1][posA2.x].first - A.x) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA.x] + (Grid[1][posA2.x].first - A.x) *(Grid[posA2.y][1].second - A.y) * U[posA.y][posA.x] + (A.x - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - A.y) *U[posA.y][posA2.x] + (A.x - Grid[1][posA.x].first) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA2.x]) / ((Grid[1][posA2.x].first - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - Grid[posA.y][1].second));
-
             A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
 
+            // Interpolate Particle B
             Particle& B = mParticleB[particle];
             const Index posB = Velocity.GetIndex(B);
             Index posB2(posB.x+1, posB.y-1);
@@ -237,7 +240,6 @@ int main( int argc, char* argv[] ) {
             if (posB2.y == -1) posB2.y = Velocity.Height-1;
 
             B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
-
             B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
         }
 
@@ -269,5 +271,40 @@ int main( int argc, char* argv[] ) {
         MeanCA[step] = CAMean / CountAS.size();
 
         std::cout << MeanU2[step] << " " << MeanCA[step] << std::endl;
+
+        // Update Particle Positions
+        for( size_t particle = 0; particle < Particles; particle++ ){
+            // Particle A
+            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
+
+            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
+
+            // Particle B
+            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            mParticleB[particle].y = std::fmod(mParticleB[particle].x, FieldWidth);
+
+            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+        }
+
+        // Check if all particles have reacted
+        bool isComplete = true;
+        for( size_t particle = 0; particle < Particles; particle++ ){
+            if( mParticleA[i].Alive ) {
+                isComplete = false;
+                break;
+            }
+        }
+
+        if( isComplete ){
+            break;
+        }
+
+        // Calculate Reactions
+        for( size_t particle = 0; particle < Particles; particle++ ){
+
+        }
     }
 }
