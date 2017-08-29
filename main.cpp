@@ -292,7 +292,7 @@ int main( int argc, char* argv[] ) {
         // Check if all particles have reacted
         bool isComplete = true;
         for( size_t particle = 0; particle < Particles; particle++ ){
-            if( mParticleA[i].Alive ) {
+            if( mParticleA[particle].Alive ) {
                 isComplete = false;
                 break;
             }
