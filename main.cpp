@@ -19,48 +19,45 @@ DoubleGrid CreateDoubleGrid(size_t width, size_t height) {
 
 struct Index {
     int x, y;
-
-    Index(int x, int y) : x(x), y(y) {
-
-    }
+    Index(int x, int y) : x(x), y(y) {}
 };
 
 struct Particle{
     bool Alive;
-    double x, y, u, v, mass;
+    double x, y, u, v;
 
     double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
         const double xDiff = b.x - x;
         const double yDiff = b.y - y;
 
-        std::vector<double> results;
+        std::vector<double> results(9);
 
         // Center
-        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0)) );
+        results[0] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0));
 
         // Bottom Left
-        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+        results[1] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
 
         // Bottom
-        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+        results[2] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0));
 
         // Bottom Right
-        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0)) );
+        results[3] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
 
         // Left
-        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0)) );
+        results[4] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0));
 
         // Right
-        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0)) );
+        results[5] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0));
 
         // Top Left
-        results.push_back( std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+        results[6] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
 
         // Top
-        results.push_back( std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+        results[7] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0));
 
         // Top Right
-        results.push_back( std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0)) );
+        results[8] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
 
         return *std::min_element( results.begin(), results.end() );
     }
@@ -94,7 +91,7 @@ struct Field {
 
 int main( int argc, char* argv[] ) {
     std::string sVelocity;
-    unsigned int FieldWidth, FieldHeight, GridScale, Particles, TimeSteps = 1;
+    unsigned int FieldWidth, FieldHeight, GridScale, Particles, TimeSteps;
     double TimeStep = 0.01;
 
     cxxopts::Options options(argv[0]);
@@ -109,6 +106,8 @@ int main( int argc, char* argv[] ) {
             ->default_value("5")->implicit_value("5"))
         ("p,particles", "Initial number of particles", cxxopts::value<unsigned int>(Particles)
             ->default_value("10")->implicit_value("10"))
+        ("s,steps", "Total number of steps to simulate", cxxopts::value<unsigned int>(TimeSteps)
+            ->default_value("5000")->implicit_value("5000"))
         ("help", "Print help");
     options.parse(argc, argv);
 
@@ -157,59 +156,14 @@ int main( int argc, char* argv[] ) {
     // Setup Particles
     std::vector<Particle> mParticleA(Particles), mParticleB(Particles);
 
-    mParticleA[0].x = 6.9234;
-    mParticleA[1].x = 4.3310;
-    mParticleA[2].x = 4.2018;
-    mParticleA[3].x = 1.4481;
-    mParticleA[4].x = 5.1285;
-    mParticleA[5].x = 8.0339;
-    mParticleA[6].x = 9.3188;
-    mParticleA[7].x = 6.4324;
-    mParticleA[8].x = 5.5442;
-    mParticleA[9].x = 1.1989;
-
-    mParticleA[0].y = 0.1467;
-    mParticleA[1].y = 0.1462;
-    mParticleA[2].y = 0.9986;
-    mParticleA[3].y = 0.0473;
-    mParticleA[4].y = 0.6285;
-    mParticleA[5].y = 0.6246;
-    mParticleA[6].y = 0.2868;
-    mParticleA[7].y = 0.2002;
-    mParticleA[8].y = 0.4078;
-    mParticleA[9].y = 0.9763;
-
-    mParticleB[0].x = 6.683352434689608;
-    mParticleB[1].x = 8.307203074836540;
-    mParticleB[2].x = 1.146952769896913;
-    mParticleB[3].x = 2.803967363212206;
-    mParticleB[4].x = 7.463246470539689;
-    mParticleB[5].x = 4.570490854194263;
-    mParticleB[6].x = 6.478712945735252;
-    mParticleB[7].x = 8.659819362606868;
-    mParticleB[8].x = 1.663233636699968;
-    mParticleB[9].x = 7.272637561834018;
-
-    mParticleB[0].y = 0.193934956352039;
-    mParticleB[1].y = 0.410571125591421;
-    mParticleB[2].y = 0.040404841745219;
-    mParticleB[3].y = 0.903354372755528;
-    mParticleB[4].y = 0.729667599112814;
-    mParticleB[5].y = 0.245990568047725;
-    mParticleB[6].y = 0.835649541816172;
-    mParticleB[7].y = 0.341178356375825;
-    mParticleB[8].y = 0.744876002240049;
-    mParticleB[9].y = 0.955182389042570;
-
     for( size_t i = 0; i < Particles; i++ ){
         mParticleA[i].Alive = true;
         mParticleB[i].Alive = true;
-        /*mParticleA[i].x = FieldWidth * mRandom(gen);
+        mParticleA[i].x = FieldWidth * mRandom(gen);
         mParticleA[i].y = FieldHeight * mRandom(gen);
 
         mParticleB[i].x = FieldWidth * mRandom(gen);
         mParticleB[i].y = FieldHeight * mRandom(gen);
-        */
     }
 
     // Create Concentration Grid
@@ -233,6 +187,11 @@ int main( int argc, char* argv[] ) {
 
     std::vector<double> MeanU2(TimeSteps);
     std::vector<double> MeanCA(TimeSteps);
+    std::vector<double> StepConcentration(TimeSteps);
+    std::vector<double> StepTime(TimeSteps);
+
+    // Setip Temporary Arrays
+    std::vector<double> ReactionChance(Particles);
 
     // Calculate Steps
     for( size_t step = 0; step < TimeSteps; step++ ){
@@ -261,10 +220,10 @@ int main( int argc, char* argv[] ) {
             const Index posA = Velocity.GetIndex(A);
             Index posA2(posA.x+1, posA.y-1);
 
-            if (posA2.x == Velocity.Width) posA2.x = 1;
+            if (posA2.x == Velocity.Width) posA2.x = 0;
             if (posA2.y == -1) posA2.y = Velocity.Height-1;
 
-            A.u = ((Grid[1][posA2.x].first - A.x) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA.x] + (Grid[1][posA2.x].first - A.x) *(Grid[posA2.y][1].second - A.y) * U[posA.y][posA.x] + (A.x - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - A.y) *U[posA.y][posA2.x] + (A.x - Grid[1][posA.x].first) * (A.y - Grid[posA.y][1].second) * U[posA2.y][posA2.x]) / ((Grid[1][posA2.x].first - Grid[1][posA.x].first) * (Grid[posA2.y][1].second - Grid[posA.y][1].second));
+            A.u = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
             A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
 
             // Interpolate Particle B
@@ -272,7 +231,7 @@ int main( int argc, char* argv[] ) {
             const Index posB = Velocity.GetIndex(B);
             Index posB2(posB.x+1, posB.y-1);
 
-            if (posB2.x == Velocity.Width) posB2.x = 1;
+            if (posB2.x == Velocity.Width) posB2.x = 0;
             if (posB2.y == -1) posB2.y = Velocity.Height-1;
 
             B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
@@ -306,22 +265,20 @@ int main( int argc, char* argv[] ) {
         }
         MeanCA[step] = CAMean / CountAS.size();
 
-        std::cout << MeanU2[step] << " " << MeanCA[step] << std::endl;
-
         // Update Particle Positions
         for( size_t particle = 0; particle < Particles; particle++ ){
             // Particle A
             mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
-
             mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+
+            mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
             mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
 
             // Particle B
             mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleB[particle].y = std::fmod(mParticleB[particle].x, FieldWidth);
-
             mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+
+            mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
             mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
         }
 
@@ -340,16 +297,15 @@ int main( int argc, char* argv[] ) {
 
         // Calculate Reactions
         for( size_t a = 0; a < Particles; a++ ){
-            std::vector<double> ReactionChance(Particles);
             for( size_t b = 0; b < Particles; b++ ){
                 const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
-                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(std::pow(-distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
                 const double random = probability - mRandom(gen);
 
                 ReactionChance[b] = random;
             }
 
-            size_t index = 0; double maximum = 0;
+            size_t index = 0; double maximum = std::numeric_limits<double>::min();
             for( size_t b = 0; b < Particles; b++ ){
                 if( ReactionChance[b] > maximum ){
                     index = b;
@@ -359,8 +315,23 @@ int main( int argc, char* argv[] ) {
 
             if( ReactionChance[index] > 0 ) {
                 mParticleA[a].Alive = false;
-                mParticleB[a].Alive = false;
+                mParticleB[index].Alive = false;
             }
         }
+
+        // Update Concentration Statistics
+        unsigned int alive = 0;
+        for( size_t a = 0; a < Particles; a++ ){
+            if( mParticleA[a].Alive ) {
+                alive++;
+            }
+        }
+
+        StepConcentration[step+1] = ((float)alive * ParticleMass / (FieldWidth * FieldHeight));
+        StepTime[step+1] = StepTime[step] + TimeStep;
+
+        std::cout << "Step: " << step << std::endl;
+        std::cout << "\tConcentration: " << StepConcentration[step+1] << std::endl;
+        std::cout << "\tTotal Time: " << StepTime[step+1] << std::endl;
     }
 }
