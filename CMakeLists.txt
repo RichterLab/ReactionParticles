@@ -9,8 +9,22 @@ endif (NOT CMAKE_BUILD_TYPE)
 # Require C++ 11
 set (CMAKE_CXX_STANDARD 11)
 
+# CUDA
+option( BUILD_CUDA "Build CUDA code" OFF)
+if (BUILD_CUDA)
+  find_package(CUDA REQUIRED)
+
+  # Setup CUDA Compilation for Maximum compatability
+  set( CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_20,code=compute_20 -gencode arch=compute_30,code=compute_30 -gencode arch=compute_35,code=compute_35 -gencode arch=compute_50,code=compute_50")
+  set( CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -DBUILD_CUDA -std=c++11" )
+
+  set_source_files_properties( "main.cpp" PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ )
+  CUDA_ADD_EXECUTABLE( reaction-particle "main.cpp" )
+else(BUILD_CUDA)
+    add_executable (reaction-particle "main.cpp")
+endif(BUILD_CUDA)
+
 # Build Executable
-add_executable (reaction-particle "main.cpp")
 include_directories(".")
 install ( TARGETS reaction-particle RUNTIME DESTINATION "bin")
 
