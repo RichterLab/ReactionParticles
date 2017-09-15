@@ -195,8 +195,6 @@ int main( int argc, char* argv[] ) {
 
     // Calculate Steps
     for( size_t step = 0; step < TimeSteps; step++ ){
-        std::cout << "Step " << step << std::endl;
-
         TimeStep = std::min(TimeStep * TimeStepEpsilon, TimeStepMax);
         ReactionProbability = ReactionRate * ParticleMass * TimeStep;
 
@@ -204,11 +202,15 @@ int main( int argc, char* argv[] ) {
 
         // Update Particle Concentration Count
         for( size_t particle = 0; particle < Particles; particle++ ){
-            const Index posA = Concentration.GetIndex(mParticleA[particle]);
-            CountA[posA.y][posA.x] += 1;
+            if( mParticleA[particle].Alive ) {
+                const Index posA = Concentration.GetIndex(mParticleA[particle]);
+                CountA[posA.y][posA.x] += 1;
+            }
 
-            const Index posB = Concentration.GetIndex(mParticleB[particle]);
-            CountB[posB.y][posB.x] += 1;
+            if( mParticleB[particle].Alive ) {
+                const Index posB = Concentration.GetIndex(mParticleB[particle]);
+                CountB[posB.y][posB.x] += 1;
+            }
         }
 
         // Interpolate Velocities
@@ -217,25 +219,29 @@ int main( int argc, char* argv[] ) {
         for( size_t particle = 0; particle < Particles; particle++ ){
             // Interpolate Particle A
             Particle& A = mParticleA[particle];
-            const Index posA = Velocity.GetIndex(A);
-            Index posA2(posA.x+1, posA.y-1);
+            if( A.Alive ) {
+                const Index posA = Velocity.GetIndex(A);
+                Index posA2(posA.x+1, posA.y-1);
 
-            if (posA2.x == Velocity.Width) posA2.x = 0;
-            if (posA2.y == -1) posA2.y = Velocity.Height-1;
+                if (posA2.x == Velocity.Width) posA2.x = 0;
+                if (posA2.y == -1) posA2.y = Velocity.Height-1;
 
-            A.u = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
-            A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
+                A.u = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
+                A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
+            }
 
             // Interpolate Particle B
             Particle& B = mParticleB[particle];
-            const Index posB = Velocity.GetIndex(B);
-            Index posB2(posB.x+1, posB.y-1);
+            if( B.Alive ) {
+                const Index posB = Velocity.GetIndex(B);
+                Index posB2(posB.x+1, posB.y-1);
 
-            if (posB2.x == Velocity.Width) posB2.x = 0;
-            if (posB2.y == -1) posB2.y = Velocity.Height-1;
+                if (posB2.x == Velocity.Width) posB2.x = 0;
+                if (posB2.y == -1) posB2.y = Velocity.Height-1;
 
-            B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
-            B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
+                B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
+                B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
+            }
         }
 
         for( size_t i = 0; i < CountAS.size(); i++ ){
@@ -268,18 +274,22 @@ int main( int argc, char* argv[] ) {
         // Update Particle Positions
         for( size_t particle = 0; particle < Particles; particle++ ){
             // Particle A
-            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            if( mParticleA[particle].Alive ) {
+                mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+                mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
 
-            mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
-            mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
+                mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
+                mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
+            }
 
             // Particle B
-            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+            if( mParticleB[particle].Alive ) {
+                mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+                mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
 
-            mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
-            mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+                mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
+                mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+            }
         }
 
         // Check if all particles have reacted
@@ -297,25 +307,31 @@ int main( int argc, char* argv[] ) {
 
         // Calculate Reactions
         for( size_t a = 0; a < Particles; a++ ){
-            for( size_t b = 0; b < Particles; b++ ){
-                const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
-                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
-                const double random = probability - mRandom(gen);
+            if( mParticleA[a].Alive ) {
+                for( size_t b = 0; b < Particles; b++ ){
+                    if( mParticleB[b].Alive ) {
+                        const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
+                        const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                        const double random = probability - mRandom(gen);
 
-                ReactionChance[b] = random;
-            }
-
-            size_t index = 0; double maximum = std::numeric_limits<double>::min();
-            for( size_t b = 0; b < Particles; b++ ){
-                if( ReactionChance[b] > maximum ){
-                    index = b;
-                    maximum = ReactionChance[b];
+                        ReactionChance[b] = random;
+                    }else{
+                        ReactionChance[b] = std::numeric_limits<double>::min();;
+                    }
                 }
-            }
 
-            if( ReactionChance[index] > 0 ) {
-                mParticleA[a].Alive = false;
-                mParticleB[index].Alive = false;
+                size_t index = 0; double maximum = std::numeric_limits<double>::min();
+                for( size_t b = 0; b < Particles; b++ ){
+                    if( ReactionChance[b] > maximum ){
+                        index = b;
+                        maximum = ReactionChance[b];
+                    }
+                }
+
+                if( ReactionChance[index] > 0 ) {
+                    mParticleA[a].Alive = false;
+                    mParticleB[index].Alive = false;
+                }
             }
         }
 
