@@ -111,6 +111,24 @@ void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle 
     }
 }
 
+void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
+    for( size_t particle = 0; particle < Particles; particle++ ){
+        // Particle A
+        mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+        mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+
+        mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
+        mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
+
+        // Particle B
+        mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+        mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+
+        mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
+        mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+    }
+}
+
 int main( int argc, char* argv[] ) {
     std::string sVelocity;
     unsigned int FieldWidth, FieldHeight, GridScale, Particles, TimeSteps;
@@ -289,21 +307,12 @@ int main( int argc, char* argv[] ) {
         }
         MeanCA[step] = CAMean / CountAS.size();
 
+
         // Update Particle Positions
+        UpdateParticles(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, mRandom, gen);
+
         for( size_t particle = 0; particle < Particles; particle++ ){
-            // Particle A
-            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-
-            mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
-            mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
-
-            // Particle B
-            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-
-            mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
-            mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+            std::cout << mParticleA[particle].x << " " << mParticleA[particle].y << std::endl;
         }
 
         // Check if all particles have reacted
