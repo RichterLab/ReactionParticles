@@ -63,32 +63,6 @@ struct Particle{
     }
 };
 
-struct Field {
-    unsigned int Width, Height;
-    double dx, dy;
-    DoubleGrid data;
-    std::vector<std::vector<std::pair<double,double>>> steps;
-
-    Field(unsigned int width, unsigned int height, double xLength, double yLength) : Width(width), Height(height) {
-        data = CreateDoubleGrid(width, height);
-
-        dx = xLength/(width-1);
-        dy = yLength/(height-1);
-
-        steps.resize(height);
-        for( size_t i = 0; i < height; i++ ){
-            steps[i].resize(width);
-            for( size_t j = 0; j < width; j++ ){
-                steps[i][j] = std::make_pair(j * dx, (height-i-1) * dy);
-            }
-        }
-    }
-
-    const Index GetIndex(const Particle &p) const {
-        return Index( std::floor(p.x/dx), (Height-1) - std::floor(p.y/dy) );
-    }
-};
-
 template <typename T>
 const T LinearAccess(T* array, const size_t x, const size_t y, const size_t Width) {
     return array[x + y * Width];
