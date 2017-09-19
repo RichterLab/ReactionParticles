@@ -207,8 +207,6 @@ int main( int argc, char* argv[] ) {
     DoubleGrid CountBS = CreateDoubleGrid(ConcentrationWidth-1, ConcentrationHeight-1);
 
     // Create Statistics Grids
-    DoubleGrid DiffSquared = CreateDoubleGrid(ConcentrationWidth-1, ConcentrationHeight-1);
-
     std::vector<double> MeanU2(TimeSteps);
     std::vector<double> MeanCA(TimeSteps);
     std::vector<double> StepConcentration(TimeSteps);
