@@ -156,32 +156,17 @@ int main( int argc, char* argv[] ) {
         exit(0);
     }
 
-    // Initialize Random Number Generator
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    gen.seed(1024);
-
-    // Setup Velocity Fields
-    DoubleGrid U = CreateDoubleGrid(FieldWidth * GridScale, FieldHeight * GridScale);
-    DoubleGrid V = CreateDoubleGrid(FieldWidth * GridScale, FieldHeight * GridScale);
-
-    // Parse Velocity File
-    std::ifstream fVelocity(sVelocity, std::ifstream::in);
-    for( size_t i = 0; i < FieldHeight * GridScale; i++ ){
-        for( size_t j = 0; j < FieldWidth * GridScale; j++ ){
-            fVelocity >> U[i][j];
-        }
-    }
-
-    for( size_t i = 0; i < FieldHeight * GridScale; i++ ){
-        for( size_t j = 0; j < FieldWidth * GridScale; j++ ){
-            fVelocity >> V[i][j];
-        }
-    }
-
-    fVelocity.close();
-
     // Setup Constants
+    const size_t VelocityWidth = FieldWidth * GridScale;
+    const size_t VelocityHeight = FieldHeight * GridScale;
+    const double VelocityDX = FieldWidth / (double)(VelocityWidth-1);
+    const double VelocityDY = FieldHeight / (double)(VelocityHeight-1);
+
+    const size_t ConcentrationWidth = 2 * FieldWidth;
+    const size_t ConcentrationHeight = 2 * FieldHeight;
+    const double ConcentrationDX = FieldWidth / (double)(ConcentrationWidth-1);
+    const double ConcentrationDY = FieldHeight / (double)(ConcentrationHeight-1);
+
     const double Diffusion = 1e-5;
     const double InitialConcentration = 1.0;
     const double ReactionRate = 10.0;
@@ -191,8 +176,33 @@ int main( int argc, char* argv[] ) {
     double ReactionProbability = ReactionRate * ParticleMass * TimeStep;
     const double ReactionProbabilityMax = ReactionRate * ParticleMass / 8.0 / 3.14159 / Diffusion;
 
+    // Initialize Random Number Generator
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    gen.seed(1024);
+
     // Create Random Number Distribution
     std::uniform_real_distribution<double> mRandom;
+
+    // Setup Velocity Fields
+    DoubleGrid U = CreateDoubleGrid(VelocityWidth, VelocityHeight);
+    DoubleGrid V = CreateDoubleGrid(VelocityWidth, VelocityHeight);
+
+    // Parse Velocity File
+    std::ifstream fVelocity(sVelocity, std::ifstream::in);
+    for( size_t i = 0; i < VelocityHeight; i++ ){
+        for( size_t j = 0; j < VelocityWidth; j++ ){
+            fVelocity >> U[i][j];
+        }
+    }
+
+    for( size_t i = 0; i < VelocityHeight; i++ ){
+        for( size_t j = 0; j < VelocityWidth; j++ ){
+            fVelocity >> V[i][j];
+        }
+    }
+
+    fVelocity.close();
 
     // Setup Particles
     Particle *mParticleA = (Particle*)malloc( sizeof(Particle) * Particles );
@@ -208,23 +218,18 @@ int main( int argc, char* argv[] ) {
         mParticleB[i].y = FieldHeight * mRandom(gen);
     }
 
-    // Create Concentration Grid
-    Field Concentration(2 * FieldWidth, 2 * FieldHeight, FieldWidth, FieldHeight);
-
     // Create Concentration Count Grid
-    unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
-    memset(CountA, 0, sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
-    unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
-    memset(CountB, 0, sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
+    unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+    memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
 
-    DoubleGrid CountAS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
-    DoubleGrid CountBS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
+    unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+    memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
 
-    // Create Velocity Grid
-    Field Velocity(U[0].size(), U.size(), FieldWidth, FieldHeight);
+    DoubleGrid CountAS = CreateDoubleGrid(ConcentrationWidth-1, ConcentrationHeight-1);
+    DoubleGrid CountBS = CreateDoubleGrid(ConcentrationWidth-1, ConcentrationHeight-1);
 
     // Create Statistics Grids
-    DoubleGrid DiffSquared = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
+    DoubleGrid DiffSquared = CreateDoubleGrid(ConcentrationWidth-1, ConcentrationHeight-1);
 
     std::vector<double> MeanU2(TimeSteps);
     std::vector<double> MeanCA(TimeSteps);
@@ -244,69 +249,68 @@ int main( int argc, char* argv[] ) {
         const double P = 0.000001;
 
         // Update Particle Concentration Count
-        UpdateConcentration(Particles, mParticleA, mParticleB, Concentration.dx, Concentration.dy, Concentration.Height, CountA, CountB, (2 * FieldHeight));
+        UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationHeight, CountA, CountB, ConcentrationHeight);
 
-        for( size_t i = 0; i < (2 * FieldHeight); i++ ){
-            for( size_t j = 0; j < (2 * FieldWidth); j++ ){
-                std::cout << LinearAccess(CountA, i, j, (2 * FieldHeight)) << ", ";
+        for( size_t i = 0; i < ConcentrationHeight; i++ ){
+            for( size_t j = 0; j < ConcentrationWidth; j++ ){
+                std::cout << LinearAccess(CountA, i, j, ConcentrationHeight) << ", ";
             }
             std::cout << std::endl;
         }
 
         // Interpolate Velocities
-        const std::vector<std::vector<std::pair<double,double>>>& Grid = Velocity.steps;
-
         for( size_t particle = 0; particle < Particles; particle++ ){
             // Interpolate Particle A
             Particle& A = mParticleA[particle];
-            const Index posA = Velocity.GetIndex(A);
+            const Index posA( std::floor(mParticleA[particle].x / VelocityDX), (VelocityHeight-1) - std::floor(mParticleA[particle].y / VelocityDY));
             Index posA2(posA.x+1, posA.y-1);
 
-            if (posA2.x == Velocity.Width) posA2.x = 0;
-            if (posA2.y == -1) posA2.y = Velocity.Height-1;
+            if (posA2.x == VelocityWidth) posA2.x = 0;
+            if (posA2.y == -1) posA2.y = VelocityHeight-1;
 
-            A.u = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*U[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*U[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
-            A.v = ((Grid[1][posA2.x].first-A.x)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA.x]+(Grid[1][posA2.x].first-A.x)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA.x]+(A.x-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-A.y)*V[posA.y][posA2.x]+(A.x-Grid[1][posA.x].first)*(A.y-Grid[posA.y][1].second)*V[posA2.y][posA2.x])/((Grid[1][posA2.x].first-Grid[1][posA.x].first)*(Grid[posA2.y][1].second-Grid[posA.y][1].second));
+            const double aa = posA2.x * VelocityDX;
+            const double ab = (VelocityHeight - posA.y - 1) * VelocityDY;
+            const double ac = (VelocityHeight - posA2.y - 1) * VelocityDY;
+            const double ad = posA.x * VelocityDX;
+
+            A.u = ((aa-A.x)*(A.y-ab)*U[posA2.y][posA.x]+(aa-A.x)*(ac-A.y)*U[posA.y][posA.x]+(A.x-ad)*(ac-A.y)*U[posA.y][posA2.x]+(A.x-ad)*(A.y-ab)*U[posA2.y][posA2.x])/((aa-ad)*(ac-ab));
+            A.v = ((aa-A.x)*(A.y-ab)*V[posA2.y][posA.x]+(aa-A.x)*(ac-A.y)*V[posA.y][posA.x]+(A.x-ad)*(ac-A.y)*V[posA.y][posA2.x]+(A.x-ad)*(A.y-ab)*V[posA2.y][posA2.x])/((aa-ad)*(ac-ab));
 
             // Interpolate Particle B
             Particle& B = mParticleB[particle];
-            const Index posB = Velocity.GetIndex(B);
+            const Index posB( std::floor(mParticleB[particle].x / VelocityDX), (VelocityHeight-1) - std::floor(mParticleB[particle].y / VelocityDY));
             Index posB2(posB.x+1, posB.y-1);
 
-            if (posB2.x == Velocity.Width) posB2.x = 0;
-            if (posB2.y == -1) posB2.y = Velocity.Height-1;
+            if (posB2.x == VelocityWidth) posB2.x = 0;
+            if (posB2.y == -1) posB2.y = VelocityHeight-1;
 
-            B.u = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*U[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*U[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
-            B.v = ((Grid[1][posB2.x].first-B.x)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB.x]+(Grid[1][posB2.x].first-B.x)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB.x]+(B.x-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-B.y)*V[posB.y][posB2.x]+(B.x-Grid[1][posB.x].first)*(B.y-Grid[posB.y][1].second)*V[posB2.y][posB2.x])/((Grid[1][posB2.x].first-Grid[1][posB.x].first)*(Grid[posB2.y][1].second-Grid[posB.y][1].second));
+            const double ba = posB2.x * VelocityDX;
+            const double bb = (VelocityHeight - posB.y - 1) * VelocityDY;
+            const double bc = (VelocityHeight - posB2.y - 1) * VelocityDY;
+            const double bd = posB.x * VelocityDX;
+
+            B.u = ((ba-B.x)*(B.y-bb)*U[posB2.y][posB.x]+(ba-B.x)*(bc-B.y)*U[posB.y][posB.x]+(B.x-bd)*(bc-B.y)*U[posB.y][posB2.x]+(B.x-bd)*(B.y-bb)*U[posB2.y][posB2.x])/((ba-bd)*(bc-bb));
+            B.v = ((ba-B.x)*(B.y-bb)*V[posB2.y][posB.x]+(ba-B.x)*(bc-B.y)*V[posB.y][posB.x]+(B.x-bd)*(bc-B.y)*V[posB.y][posB2.x]+(B.x-bd)*(B.y-bb)*V[posB2.y][posB2.x])/((ba-bd)*(bc-bb));
         }
 
+        double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < CountAS.size(); i++ ){
+            double PartMeanU2 = 0.0, PartMeanCA = 0.0;
             for( size_t j = 0; j < CountAS[0].size(); j++ ){
-                CountAS[i][j] = (LinearAccess(CountA, i+1, j, (2 * FieldWidth)) * ParticleMass) / (Concentration.dx * Concentration.dy);
-                CountBS[i][j] = (LinearAccess(CountB, i+1, j, (2 * FieldWidth)) * ParticleMass) / (Concentration.dx * Concentration.dy);
-            }
-        }
+                CountAS[i][j] = (LinearAccess(CountA, i+1, j, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
+                CountBS[i][j] = (LinearAccess(CountB, i+1, j, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
 
-        double U2Mean = 0.0;
-        for( size_t i = 0; i < CountAS.size(); i++ ){
-            double PartMean = 0.0;
-            for( size_t j = 0; j < CountAS[0].size(); j++ ){
-                PartMean += std::pow(CountAS[i][j] - CountBS[i][j], 2);
+                PartMeanU2 += std::pow(CountAS[i][j] - CountBS[i][j], 2);
+                PartMeanCA += CountAS[i][j];
             }
-            U2Mean += PartMean / CountAS[0].size();
+            U2Mean += PartMeanU2 / CountAS[0].size();
+            CAMean += PartMeanCA / CountAS[0].size();
         }
         MeanU2[step] = U2Mean / CountAS.size();
-
-        double CAMean = 0.0;
-        for( size_t i = 0; i < CountAS.size(); i++ ){
-            double PartMean = 0.0;
-            for( size_t j = 0; j < CountAS[0].size(); j++ ){
-                PartMean += CountAS[i][j];
-            }
-            CAMean += PartMean / CountAS[0].size();
-        }
         MeanCA[step] = CAMean / CountAS.size();
 
+        std::cout << "MeanU2 " << MeanU2[step] << std::endl;
+        std::cout << "MeanCA " << MeanCA[step] << std::endl;
 
         // Update Particle Positions
         UpdateParticles(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, mRandom, gen);
