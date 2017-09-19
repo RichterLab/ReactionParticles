@@ -84,10 +84,32 @@ struct Field {
         }
     }
 
-    const Index GetIndex(Particle &p) {
+    const Index GetIndex(const Particle &p) const {
         return Index( std::floor(p.x/dx), (Height-1) - std::floor(p.y/dy) );
     }
 };
+
+template <typename T>
+const T LinearAccess(T* array, const size_t x, const size_t y, const size_t Width) {
+    return array[x + y * Width];
+}
+
+template <typename T>
+void LinearSet(T* array, const size_t x, const size_t y, const size_t Width, const T value) {
+    array[x + y * Width] = value;
+}
+
+void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const unsigned int ConcentrationHeight, unsigned int *CountA, unsigned int *CountB, size_t CountWidth){
+    for( size_t particle = 0; particle < Particles; particle++ ){
+        const unsigned int ax = std::floor(mParticleA[particle].x / dx);
+        const unsigned int ay = (ConcentrationHeight-1) - std::floor(mParticleA[particle].y / dy);
+        LinearSet(CountA, ay, ax, CountWidth, LinearAccess(CountA, ay, ax, CountWidth) + 1);
+
+        const unsigned int bx = std::floor(mParticleB[particle].x / dx);
+        const unsigned int by = (ConcentrationHeight-1) - std::floor(mParticleB[particle].y / dy);
+        LinearSet(CountB, by, bx, CountWidth, LinearAccess(CountB, by, bx, CountWidth) + 1);
+    }
+}
 
 int main( int argc, char* argv[] ) {
     std::string sVelocity;
@@ -119,6 +141,7 @@ int main( int argc, char* argv[] ) {
     // Initialize Random Number Generator
     std::random_device rd;
     std::mt19937_64 gen(rd());
+    gen.seed(1024);
 
     // Setup Velocity Fields
     DoubleGrid U = CreateDoubleGrid(FieldWidth * GridScale, FieldHeight * GridScale);
@@ -154,14 +177,15 @@ int main( int argc, char* argv[] ) {
     std::uniform_real_distribution<double> mRandom;
 
     // Setup Particles
-    std::vector<Particle> mParticleA(Particles), mParticleB(Particles);
+    Particle *mParticleA = (Particle*)malloc( sizeof(Particle) * Particles );
+    Particle *mParticleB = (Particle*)malloc( sizeof(Particle) * Particles );
 
     for( size_t i = 0; i < Particles; i++ ){
         mParticleA[i].Alive = true;
-        mParticleB[i].Alive = true;
         mParticleA[i].x = FieldWidth * mRandom(gen);
         mParticleA[i].y = FieldHeight * mRandom(gen);
 
+        mParticleB[i].Alive = true;
         mParticleB[i].x = FieldWidth * mRandom(gen);
         mParticleB[i].y = FieldHeight * mRandom(gen);
     }
@@ -170,11 +194,10 @@ int main( int argc, char* argv[] ) {
     Field Concentration(2 * FieldWidth, 2 * FieldHeight, FieldWidth, FieldHeight);
 
     // Create Concentration Count Grid
-    std::vector<std::vector<unsigned int>> CountA(2 * FieldHeight), CountB(2 * FieldHeight);
-    for( size_t i = 0; i < 2 * FieldHeight; i++ ){
-        CountA[i].resize(2 * FieldWidth);
-        CountB[i].resize(2 * FieldWidth);
-    }
+    unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
+    memset(CountA, 0, sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
+    unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
+    memset(CountB, 0, sizeof(unsigned int) * (2 * FieldHeight) * (2 * FieldWidth));
 
     DoubleGrid CountAS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
     DoubleGrid CountBS = CreateDoubleGrid((2 * FieldWidth)-1, (2 * FieldHeight)-1);
@@ -203,12 +226,13 @@ int main( int argc, char* argv[] ) {
         const double P = 0.000001;
 
         // Update Particle Concentration Count
-        for( size_t particle = 0; particle < Particles; particle++ ){
-            const Index posA = Concentration.GetIndex(mParticleA[particle]);
-            CountA[posA.y][posA.x] += 1;
+        UpdateConcentration(Particles, mParticleA, mParticleB, Concentration.dx, Concentration.dy, Concentration.Height, CountA, CountB, (2 * FieldHeight));
 
-            const Index posB = Concentration.GetIndex(mParticleB[particle]);
-            CountB[posB.y][posB.x] += 1;
+        for( size_t i = 0; i < (2 * FieldHeight); i++ ){
+            for( size_t j = 0; j < (2 * FieldWidth); j++ ){
+                std::cout << LinearAccess(CountA, i, j, (2 * FieldHeight)) << ", ";
+            }
+            std::cout << std::endl;
         }
 
         // Interpolate Velocities
@@ -240,8 +264,8 @@ int main( int argc, char* argv[] ) {
 
         for( size_t i = 0; i < CountAS.size(); i++ ){
             for( size_t j = 0; j < CountAS[0].size(); j++ ){
-                CountAS[i][j] = (CountA[i+1][j] * ParticleMass) / (Concentration.dx * Concentration.dy);
-                CountBS[i][j] = (CountB[i+1][j] * ParticleMass) / (Concentration.dx * Concentration.dy);
+                CountAS[i][j] = (LinearAccess(CountA, i+1, j, (2 * FieldWidth)) * ParticleMass) / (Concentration.dx * Concentration.dy);
+                CountBS[i][j] = (LinearAccess(CountB, i+1, j, (2 * FieldWidth)) * ParticleMass) / (Concentration.dx * Concentration.dy);
             }
         }
 
