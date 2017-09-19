@@ -159,20 +159,24 @@ int main( int argc, char* argv[] ) {
     std::uniform_real_distribution<double> mRandom;
 
     // Setup Velocity Fields
-    DoubleGrid U = CreateDoubleGrid(VelocityWidth, VelocityHeight);
-    DoubleGrid V = CreateDoubleGrid(VelocityWidth, VelocityHeight);
+    double *U = (double*)malloc( sizeof(double) * VelocityWidth * VelocityHeight );
+    double *V = (double*)malloc( sizeof(double) * VelocityWidth * VelocityHeight );
 
     // Parse Velocity File
     std::ifstream fVelocity(sVelocity, std::ifstream::in);
     for( size_t i = 0; i < VelocityHeight; i++ ){
         for( size_t j = 0; j < VelocityWidth; j++ ){
-            fVelocity >> U[i][j];
+            double value;
+            fVelocity >> value;
+            LinearSet(U, i, j, VelocityHeight, value);
         }
     }
 
     for( size_t i = 0; i < VelocityHeight; i++ ){
         for( size_t j = 0; j < VelocityWidth; j++ ){
-            fVelocity >> V[i][j];
+            double value;
+            fVelocity >> value;
+            LinearSet(V, i, j, VelocityHeight, value);
         }
     }
 
@@ -247,8 +251,8 @@ int main( int argc, char* argv[] ) {
             const double ac = (VelocityHeight - posA2.y - 1) * VelocityDY;
             const double ad = posA.x * VelocityDX;
 
-            A.u = ((aa-A.x)*(A.y-ab)*U[posA2.y][posA.x]+(aa-A.x)*(ac-A.y)*U[posA.y][posA.x]+(A.x-ad)*(ac-A.y)*U[posA.y][posA2.x]+(A.x-ad)*(A.y-ab)*U[posA2.y][posA2.x])/((aa-ad)*(ac-ab));
-            A.v = ((aa-A.x)*(A.y-ab)*V[posA2.y][posA.x]+(aa-A.x)*(ac-A.y)*V[posA.y][posA.x]+(A.x-ad)*(ac-A.y)*V[posA.y][posA2.x]+(A.x-ad)*(A.y-ab)*V[posA2.y][posA2.x])/((aa-ad)*(ac-ab));
+            A.u = ((aa-A.x)*(A.y-ab)*LinearAccess(U, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(U, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(U, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(U, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
+            A.v = ((aa-A.x)*(A.y-ab)*LinearAccess(V, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(V, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(V, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(V, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
 
             // Interpolate Particle B
             Particle& B = mParticleB[particle];
@@ -263,8 +267,8 @@ int main( int argc, char* argv[] ) {
             const double bc = (VelocityHeight - posB2.y - 1) * VelocityDY;
             const double bd = posB.x * VelocityDX;
 
-            B.u = ((ba-B.x)*(B.y-bb)*U[posB2.y][posB.x]+(ba-B.x)*(bc-B.y)*U[posB.y][posB.x]+(B.x-bd)*(bc-B.y)*U[posB.y][posB2.x]+(B.x-bd)*(B.y-bb)*U[posB2.y][posB2.x])/((ba-bd)*(bc-bb));
-            B.v = ((ba-B.x)*(B.y-bb)*V[posB2.y][posB.x]+(ba-B.x)*(bc-B.y)*V[posB.y][posB.x]+(B.x-bd)*(bc-B.y)*V[posB.y][posB2.x]+(B.x-bd)*(B.y-bb)*V[posB2.y][posB2.x])/((ba-bd)*(bc-bb));
+            B.u = ((ba-B.x)*(B.y-bb)*LinearAccess(U, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(U, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(U, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(U, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
+            B.v = ((ba-B.x)*(B.y-bb)*LinearAccess(V, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(V, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(V, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(V, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
         }
 
         double U2Mean = 0.0, CAMean = 0.0;
