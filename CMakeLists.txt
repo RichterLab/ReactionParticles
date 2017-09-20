@@ -9,6 +9,9 @@ endif (NOT CMAKE_BUILD_TYPE)
 # Require C++ 11
 set (CMAKE_CXX_STANDARD 11)
 
+# Setup Include Directories
+include_directories(".")
+
 # CUDA
 option( BUILD_CUDA "Build CUDA code" OFF)
 if (BUILD_CUDA)
@@ -26,7 +29,6 @@ else(BUILD_CUDA)
 endif(BUILD_CUDA)
 
 # Build Executable
-include_directories(".")
 install ( TARGETS reaction-particle RUNTIME DESTINATION "bin")
 
 option( BUILD_TESTS "Build tests" OFF)
