@@ -9,17 +9,25 @@ GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Pa
         index_stride = blockDim.x * gridDim.x;
     #endif
 
+#ifndef BUILD_CUDA
     memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
     memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+#endif
 
-    for(int particle = 0; particle < Particles; particle += index_stride) {
-        const unsigned int ax = std::floor(mParticleA[particle].x / dx);
-        const unsigned int ay = (ConcentrationHeight-1) - std::floor(mParticleA[particle].y / dy);
-        LinearSet(CountA, ax, ay, ConcentrationWidth, LinearAccess(CountA, ax, ay, ConcentrationWidth) + 1);
+    for(int idx = index_start; idx < ConcentrationHeight * ConcentrationWidth; idx += index_stride) {
+        for(int particle = 0; particle < Particles; particle++) {
+            const unsigned int ax = std::floor(mParticleA[particle].x / dx);
+            const unsigned int ay = (ConcentrationHeight-1) - std::floor(mParticleA[particle].y / dy);
+            if( ax + ay * ConcentrationWidth == idx ){
+                LinearSet(CountA, ax, ay, ConcentrationWidth, LinearAccess(CountA, ax, ay, ConcentrationWidth) + 1);
+            }
 
-        const unsigned int bx = std::floor(mParticleB[particle].x / dx);
-        const unsigned int by = (ConcentrationHeight-1) - std::floor(mParticleB[particle].y / dy);
-        LinearSet(CountB, bx, by, ConcentrationWidth, LinearAccess(CountB, bx, by, ConcentrationWidth) + 1);
+            const unsigned int bx = std::floor(mParticleB[particle].x / dx);
+            const unsigned int by = (ConcentrationHeight-1) - std::floor(mParticleB[particle].y / dy);
+            if( bx + by * ConcentrationWidth == idx ){
+                LinearSet(CountB, bx, by, ConcentrationWidth, LinearAccess(CountB, bx, by, ConcentrationWidth) + 1);
+            }
+        }
     }
 }
 
@@ -30,7 +38,7 @@ GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *
         index_stride = blockDim.x * gridDim.x;
     #endif
 
-    for(int particle = 0; particle < Particles; particle += index_stride) {
+    for(int particle = index_start; particle < Particles; particle += index_stride) {
         // Interpolate Particle A
         Particle& A = mParticleA[particle];
         const Index posA( std::floor(A.x / VelocityDX), (VelocityHeight-1) - std::floor(A.y / VelocityDY));
@@ -65,14 +73,14 @@ GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *
     }
 }
 
-GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
+void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
     int index_start = 0, index_stride = 1;
     #ifdef BUILD_CUDA
-        index_start = blockIdx.x * blockDim.x + threadIdx.x;
-        index_stride = blockDim.x * gridDim.x;
+        //index_start = blockIdx.x * blockDim.x + threadIdx.x;
+        //index_stride = blockDim.x * gridDim.x;
     #endif
 
-    for(int particle = 0; particle < Particles; particle += index_stride) {
+    for(int particle = index_start; particle < Particles; particle += index_stride) {
         // Particle A
         mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
         mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);

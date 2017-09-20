@@ -83,8 +83,17 @@ int main( int argc, char* argv[] ) {
             LinearSet(V, i, j, VelocityHeight, value);
         }
     }
-
     fVelocity.close();
+
+#ifdef BUILD_CUDA
+    double *dU, *dV;
+
+    gpuErrchk(cudaMalloc((void **)&dU, sizeof(double) * VelocityWidth * VelocityHeight));
+    gpuErrchk(cudaMemcpy(dU, U, sizeof(double) * VelocityWidth * VelocityHeight, cudaMemcpyHostToDevice));
+
+    gpuErrchk(cudaMalloc((void **)&dV, sizeof(double) * VelocityWidth * VelocityHeight));
+    gpuErrchk(cudaMemcpy(dV, V, sizeof(double) * VelocityWidth * VelocityHeight, cudaMemcpyHostToDevice));
+#endif
 
     // Setup Particles
     Particle *mParticleA = (Particle*)malloc( sizeof(Particle) * Particles );
@@ -100,9 +109,24 @@ int main( int argc, char* argv[] ) {
         mParticleB[i].y = FieldHeight * mRandom(gen);
     }
 
+#ifdef BUILD_CUDA
+    Particle *dParticleA, *dParticleB;
+    gpuErrchk(cudaMalloc((void **)&dParticleA, sizeof(Particle) * Particles));
+    gpuErrchk(cudaMemcpy(dParticleA, mParticleA, sizeof(Particle) * Particles, cudaMemcpyHostToDevice));
+
+    gpuErrchk(cudaMalloc((void **)&dParticleB, sizeof(Particle) * Particles));
+    gpuErrchk(cudaMemcpy(dParticleB, mParticleB, sizeof(Particle) * Particles, cudaMemcpyHostToDevice));
+#endif
+
     // Create Concentration Count Grid
     unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
     unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+
+#ifdef BUILD_CUDA
+    unsigned int *dCountA, *dCountB;
+    gpuErrchk(cudaMalloc((void **)&dCountA, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth));
+    gpuErrchk(cudaMalloc((void **)&dCountB, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth));
+#endif
 
     // Create Statistics Grids
     std::vector<double> MeanU2(TimeSteps);
@@ -122,7 +146,18 @@ int main( int argc, char* argv[] ) {
 
         const double P = 0.000001;
 
+#ifdef BUILD_CUDA
+        gpuErrchk(cudaMemset(dCountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth));
+        gpuErrchk(cudaMemset(dCountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth));
+
+        const unsigned int blocks = std::ceil((double)(ConcentrationHeight * ConcentrationWidth) / (double)CUDA_BLOCK_THREADS);
+        UpdateConcentration<<<blocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, ConcentrationDX, ConcentrationDY, ConcentrationWidth, ConcentrationHeight, dCountA, dCountB);
+
+        gpuErrchk(cudaMemcpy(CountA, dCountA, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(CountB, dCountA, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth, cudaMemcpyDeviceToHost));
+#else
         UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationWidth, ConcentrationHeight, CountA, CountB);
+#endif
         for( size_t i = 0; i < ConcentrationHeight; i++ ){
             for( size_t j = 0; j < ConcentrationWidth; j++ ){
                 std::cout << LinearAccess(CountA, i, j, ConcentrationHeight) << ", ";
@@ -130,7 +165,19 @@ int main( int argc, char* argv[] ) {
             std::cout << std::endl;
         }
 
+#ifdef BUILD_CUDA
+        const unsigned int iblocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
+        Interpolate<<<iblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, dU, dV);
+
+        gpuErrchk(cudaMemcpy(mParticleA, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(mParticleB, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+#else
         Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
+#endif
+
+        for( size_t i = 0; i < Particles; i++ ){
+            std::cout << mParticleA[i].x << " " << mParticleA[i].y << " " << mParticleA[i].u << " " << mParticleA[i].v << std::endl;
+        }
 
         double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < (ConcentrationHeight-1); i++ ){
