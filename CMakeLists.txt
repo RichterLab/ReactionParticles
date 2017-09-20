@@ -19,9 +19,10 @@ if (BUILD_CUDA)
   set( CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -DBUILD_CUDA -std=c++11" )
 
   set_source_files_properties( "main.cpp" PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ )
-  CUDA_ADD_EXECUTABLE( reaction-particle "main.cpp" )
+  set_source_files_properties( "reaction.cpp" PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ )
+  CUDA_ADD_EXECUTABLE( reaction-particle "main.cpp" "reaction.cpp")
 else(BUILD_CUDA)
-    add_executable (reaction-particle "main.cpp")
+    add_executable (reaction-particle "main.cpp" "reaction.cpp")
 endif(BUILD_CUDA)
 
 # Build Executable
@@ -52,7 +53,7 @@ if (BUILD_TESTS)
     endif()
 
     include_directories("${CMAKE_SOURCE_DIR}" "test/")
-    add_executable (reaction-particle-test "test/main.cpp" "test/reaction.cpp")
+    add_executable (reaction-particle-test "test/main.cpp" "test/reaction.cpp" "reaction.cpp")
 
     option( BUILD_TEST_COVERAGE "Enable code coverage calculation" OFF)
     if( BUILD_TEST_COVERAGE )

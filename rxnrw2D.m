@@ -146,6 +146,7 @@ for kk=1:Nsteps
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%%CONCENTRATION GRID%%%%%%%%%
         %find out which gridbox each particle is in
+        [xAnow, yAnow]
         rnddownxA = floor(xAnow/dx);
         rnddownyA = floor(yAnow/dy);
         rnddownxB = floor(xBnow/dx);
@@ -158,7 +159,9 @@ for kk=1:Nsteps
         idx1yB = Ngridy-rnddownyB;      %lower y index
 
         %calculates the number of A and B particles in each gridbox
+        [idx1yA, idx1xA]
         countA(idx1yA,idx1xA) = countA(idx1yA,idx1xA)+1; %add one because 0 is the first index
+        countA(idx1yA,idx1xA)
         countB(idx1yB,idx1xB) = countB(idx1yB,idx1xB)+1;
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -224,10 +227,15 @@ for kk=1:Nsteps
 
     end
 
+    countA
+    countB
+
+   
     %remove row and column of zeros in countA and countB
     countA = countA(2:end,1:end-1);
     countB = countB(2:end,1:end-1);
-
+    
+    
     CA = countA*mp/(dx*dy);
     CB = countB*mp/(dx*dy);
 
@@ -239,19 +247,15 @@ for kk=1:Nsteps
 
     %Random Walk part - update the location of particles x and y by a Brownian motion
     part = randn(szxA);
-    part
     xA = xA+uA*dt+sqrt(2*D*dt)*part;
 
     part = randn(szxA);
-    part
     xB = xB+uB*dt+sqrt(2*D*dt)*part;
 
     part = randn(szxA);
-    part
     yA = yA+vA*dt+sqrt(2*D*dt)*part;
 
     part = randn(szxA);
-    part
     yB = yB+vB*dt+sqrt(2*D*dt)*part;
 
     xA = mod(xA,Lx);  %periodic boundary

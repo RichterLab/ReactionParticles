@@ -1,174 +1,11 @@
+#include "reaction.h"
+
 #include <iostream>
-#include <cmath>
 #include <string>
-#include <vector>
 #include <fstream>
 #include <random>
 
 #include <cxxopts.hpp>
-
-#ifndef BUILD_CUDA
-
-#define DEVICE
-#define GLOBAL
-#define SHARED
-#define CONSTANT
-
-#else
-
-#define DEVICE __device__
-#define GLOBAL __global__
-#define CONSTANT __constant__
-#define SHARED __shared__
-#define gpuErrchk(ans) \
-	{ gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
-	if(code != cudaSuccess) {
-		fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-		if(abort) exit(code);
-	}
-}
-#endif
-
-struct Index {
-    int x, y;
-    Index(int x, int y) : x(x), y(y) {}
-};
-
-struct Particle{
-    bool Alive;
-    double x, y, u, v;
-
-    double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
-        const double xDiff = b.x - x;
-        const double yDiff = b.y - y;
-
-        std::vector<double> results(9);
-
-        // Center
-        results[0] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0));
-
-        // Bottom Left
-        results[1] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
-
-        // Bottom
-        results[2] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0));
-
-        // Bottom Right
-        results[3] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
-
-        // Left
-        results[4] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0));
-
-        // Right
-        results[5] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0));
-
-        // Top Left
-        results[6] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
-
-        // Top
-        results[7] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0));
-
-        // Top Right
-        results[8] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
-
-        return *std::min_element( results.begin(), results.end() );
-    }
-};
-
-template <typename T>
-const T LinearAccess(T* array, const size_t x, const size_t y, const size_t Width) {
-    return array[x + y * Width];
-}
-
-template <typename T>
-void LinearSet(T* array, const size_t x, const size_t y, const size_t Width, const T value) {
-    array[x + y * Width] = value;
-}
-
-GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const unsigned int ConcentrationHeight, unsigned int *CountA, unsigned int *CountB, size_t CountWidth){
-    int index_start = 0, index_stride = 1;
-    #ifdef BUILD_CUDA
-        index_start = blockIdx.x * blockDim.x + threadIdx.x;
-        index_stride = blockDim.x * gridDim.x;
-    #endif
-
-    for(int particle = 0; particle < Particles; particle += index_stride) {
-        const unsigned int ax = std::floor(mParticleA[particle].x / dx);
-        const unsigned int ay = (ConcentrationHeight-1) - std::floor(mParticleA[particle].y / dy);
-        LinearSet(CountA, ay, ax, CountWidth, LinearAccess(CountA, ay, ax, CountWidth) + 1);
-
-        const unsigned int bx = std::floor(mParticleB[particle].x / dx);
-        const unsigned int by = (ConcentrationHeight-1) - std::floor(mParticleB[particle].y / dy);
-        LinearSet(CountB, by, bx, CountWidth, LinearAccess(CountB, by, bx, CountWidth) + 1);
-    }
-}
-
-GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const size_t VelocityWidth, const size_t VelocityHeight, const double VelocityDX, const double VelocityDY, double *U, double *V) {
-    int index_start = 0, index_stride = 1;
-    #ifdef BUILD_CUDA
-        index_start = blockIdx.x * blockDim.x + threadIdx.x;
-        index_stride = blockDim.x * gridDim.x;
-    #endif
-
-    for(int particle = 0; particle < Particles; particle += index_stride) {
-        // Interpolate Particle A
-        Particle& A = mParticleA[particle];
-        const Index posA( std::floor(A.x / VelocityDX), (VelocityHeight-1) - std::floor(A.y / VelocityDY));
-        Index posA2(posA.x+1, posA.y-1);
-
-        if (posA2.x == VelocityWidth) posA2.x = 0;
-        if (posA2.y == -1) posA2.y = VelocityHeight-1;
-
-        const double aa = posA2.x * VelocityDX;
-        const double ab = (VelocityHeight - posA.y - 1) * VelocityDY;
-        const double ac = (VelocityHeight - posA2.y - 1) * VelocityDY;
-        const double ad = posA.x * VelocityDX;
-
-        A.u = ((aa-A.x)*(A.y-ab)*LinearAccess(U, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(U, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(U, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(U, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
-        A.v = ((aa-A.x)*(A.y-ab)*LinearAccess(V, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(V, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(V, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(V, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
-
-        // Interpolate Particle B
-        Particle& B = mParticleB[particle];
-        const Index posB( std::floor(B.x / VelocityDX), (VelocityHeight-1) - std::floor(B.y / VelocityDY));
-        Index posB2(posB.x+1, posB.y-1);
-
-        if (posB2.x == VelocityWidth) posB2.x = 0;
-        if (posB2.y == -1) posB2.y = VelocityHeight-1;
-
-        const double ba = posB2.x * VelocityDX;
-        const double bb = (VelocityHeight - posB.y - 1) * VelocityDY;
-        const double bc = (VelocityHeight - posB2.y - 1) * VelocityDY;
-        const double bd = posB.x * VelocityDX;
-
-        B.u = ((ba-B.x)*(B.y-bb)*LinearAccess(U, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(U, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(U, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(U, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
-        B.v = ((ba-B.x)*(B.y-bb)*LinearAccess(V, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(V, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(V, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(V, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
-    }
-}
-
-GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
-    int index_start = 0, index_stride = 1;
-    #ifdef BUILD_CUDA
-        index_start = blockIdx.x * blockDim.x + threadIdx.x;
-        index_stride = blockDim.x * gridDim.x;
-    #endif
-
-    for(int particle = 0; particle < Particles; particle += index_stride) {
-        // Particle A
-        mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-        mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-
-        mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
-        mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
-
-        // Particle B
-        mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-        mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-
-        mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
-        mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
-    }
-}
 
 int main( int argc, char* argv[] ) {
     std::string sVelocity;
@@ -265,10 +102,7 @@ int main( int argc, char* argv[] ) {
 
     // Create Concentration Count Grid
     unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-    memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-
     unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-    memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
 
     // Create Statistics Grids
     std::vector<double> MeanU2(TimeSteps);
@@ -288,6 +122,11 @@ int main( int argc, char* argv[] ) {
 
         const double P = 0.000001;
 
+        memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+        memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+
+        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
+
         UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationHeight, CountA, CountB, ConcentrationHeight);
         for( size_t i = 0; i < ConcentrationHeight; i++ ){
             for( size_t j = 0; j < ConcentrationWidth; j++ ){
@@ -296,14 +135,12 @@ int main( int argc, char* argv[] ) {
             std::cout << std::endl;
         }
 
-        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
-
         double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < (ConcentrationHeight-1); i++ ){
             double PartMeanU2 = 0.0, PartMeanCA = 0.0;
             for( size_t j = 0; j < (ConcentrationWidth-1); j++ ){
-                const double cas = (LinearAccess(CountA, i+1, j, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
-                const double cbs = (LinearAccess(CountB, i+1, j, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
+                const double cas = (LinearAccess(CountA, j, i+1, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
+                const double cbs = (LinearAccess(CountB, j, i+1, ConcentrationWidth) * ParticleMass) / (ConcentrationDX * ConcentrationDY);
 
                 PartMeanU2 += std::pow((cas - cbs), 2.0);
                 PartMeanCA += cas;
@@ -319,10 +156,9 @@ int main( int argc, char* argv[] ) {
 
         // Update Particle Positions
         UpdateParticles(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, mRandom, gen);
-
-        for( size_t particle = 0; particle < Particles; particle++ ){
+        /*for( size_t particle = 0; particle < Particles; particle++ ){
             std::cout << mParticleA[particle].x << " " << mParticleA[particle].y << std::endl;
-        }
+        }*/
 
         // Check if all particles have reacted
         bool isComplete = true;
@@ -339,19 +175,15 @@ int main( int argc, char* argv[] ) {
 
         // Calculate Reactions
         for( size_t a = 0; a < Particles; a++ ){
+            size_t index = 0; double maximum = -std::numeric_limits<double>::max();
             for( size_t b = 0; b < Particles; b++ ){
                 const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
                 const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
                 const double random = probability - mRandom(gen);
 
-                ReactionChance[b] = random;
-            }
-
-            size_t index = 0; double maximum = std::numeric_limits<double>::min();
-            for( size_t b = 0; b < Particles; b++ ){
-                if( ReactionChance[b] > maximum ){
+                if( random > maximum ){
                     index = b;
-                    maximum = ReactionChance[b];
+                    maximum = random;
                 }
             }
 
