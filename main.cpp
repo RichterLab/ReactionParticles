@@ -163,19 +163,13 @@ int main( int argc, char* argv[] ) {
 #else
         UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationWidth, ConcentrationHeight, CountA, CountB);
 #endif
+
         for( size_t i = 0; i < ConcentrationHeight; i++ ){
             for( size_t j = 0; j < ConcentrationWidth; j++ ){
                 std::cout << LinearAccess(CountA, i, j, ConcentrationHeight) << ", ";
             }
             std::cout << std::endl;
         }
-
-#ifdef BUILD_CUDA
-        const unsigned int iblocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
-        Interpolate<<<iblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, dU, dV);
-#else
-        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
-#endif
 
         double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < (ConcentrationHeight-1); i++ ){
@@ -196,21 +190,33 @@ int main( int argc, char* argv[] ) {
         std::cout << "MeanU2 " << MeanU2[step] << std::endl;
         std::cout << "MeanCA " << MeanCA[step] << std::endl;
 
+#ifdef BUILD_CUDA
+        const unsigned int pblocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
+        Interpolate<<<pblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, dU, dV);
+#else
+        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
+#endif
+
         // Update Particle Positions
 #ifdef BUILD_CUDA
-        const unsigned int ublocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
-
-        InitializeRandom<<<ublocks, CUDA_BLOCK_THREADS>>>(1024, states);
-        UpdateParticles<<<ublocks, CUDA_BLOCK_THREADS>>>(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, states);
+        InitializeRandom<<<pblocks, CUDA_BLOCK_THREADS>>>(1024, states);
+        UpdateParticles<<<pblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, states);
 
         gpuErrchk(cudaMemcpy(mParticleA, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
         gpuErrchk(cudaMemcpy(mParticleB, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
 #else
         UpdateParticles(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, mRandom, gen);
 #endif
-        for( size_t i = 0; i < Particles; i++ ){
-            std::cout << mParticleA[i].x << " " << mParticleA[i].y << " " << mParticleA[i].u << " " << mParticleA[i].v << std::endl;
-        }
+
+        // Calculate Reactions
+#ifdef BUILD_CUDA
+        UpdateReactions<<<pblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, TimeStep, Diffusion, ReactionProbability, FieldWidth, FieldHeight, states);
+
+        gpuErrchk(cudaMemcpy(mParticleA, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(mParticleB, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+#else
+        UpdateReactions(Particles, mParticleA, mParticleB, TimeStep, Diffusion, ReactionProbability, FieldWidth, FieldHeight, mRandom, gen);
+#endif
 
         // Check if all particles have reacted
         bool isComplete = true;
@@ -223,26 +229,6 @@ int main( int argc, char* argv[] ) {
 
         if( isComplete ){
             break;
-        }
-
-        // Calculate Reactions
-        for( size_t a = 0; a < Particles; a++ ){
-            size_t index = 0; double maximum = -std::numeric_limits<double>::max();
-            for( size_t b = 0; b < Particles; b++ ){
-                const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
-                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
-                const double random = probability - mRandom(gen);
-
-                if( random > maximum ){
-                    index = b;
-                    maximum = random;
-                }
-            }
-
-            if( ReactionChance[index] > 0 ) {
-                mParticleA[a].Alive = false;
-                mParticleB[index].Alive = false;
-            }
         }
 
         // Update Concentration Statistics

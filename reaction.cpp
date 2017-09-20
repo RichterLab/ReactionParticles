@@ -1,6 +1,7 @@
 #include "reaction.h"
 
 #include <iostream>
+#include <cfloat>
 
 GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const size_t ConcentrationWidth, const size_t ConcentrationHeight, unsigned int *CountA, unsigned int *CountB){
     int index_start = 0, index_stride = 1;
@@ -81,7 +82,9 @@ GLOBAL void InitializeRandom(unsigned int seed, curandState_t* states) {
                   0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
                   &states[blockIdx.x]);
 }
+#endif
 
+#ifdef BUILD_CUDA
 GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states ){
 #else
 void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
@@ -112,5 +115,42 @@ void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mPa
 
         mParticleB[particle].x = std::fmod((float)mParticleB[particle].x, (float)FieldWidth);
         mParticleB[particle].y = std::fmod((float)mParticleB[particle].y, (float)FieldHeight);
+    }
+}
+
+#ifdef BUILD_CUDA
+GLOBAL void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const double ReactionProbability, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states){
+#else
+void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const double ReactionProbability, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen){
+#endif
+    int index_start = 0, index_stride = 1;
+    #ifdef BUILD_CUDA
+        index_start = blockIdx.x * blockDim.x + threadIdx.x;
+        index_stride = blockDim.x * gridDim.x;
+    #endif
+
+    #ifdef BUILD_CUDA
+    #define RANDOM curand_uniform(&states[blockIdx.x])
+    #else
+    #define RANDOM mRandom(gen)
+    #endif
+
+    for(int a = index_start; a < Particles; a += index_stride) {
+        size_t index = 0; double maximum = -DBL_MAX;
+        for( size_t b = 0; b < Particles; b++ ){
+            const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
+            const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+            const double random = probability - RANDOM;
+
+            if( random > maximum ){
+                index = b;
+                maximum = random;
+            }
+        }
+
+        if( maximum > 0 ) {
+            mParticleA[a].Alive = false;
+            mParticleB[index].Alive = false;
+        }
     }
 }

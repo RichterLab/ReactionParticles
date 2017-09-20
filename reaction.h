@@ -41,40 +41,38 @@ struct Particle{
     bool Alive;
     double x, y, u, v;
 
-    double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
+    HOST DEVICE double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
         const double xDiff = b.x - x;
         const double yDiff = b.y - y;
 
-        std::vector<double> results(9);
-
         // Center
-        results[0] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0));
+        double result = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0));
 
         // Bottom Left
-        results[1] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0)));
 
         // Bottom
-        results[2] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0)));
 
         // Bottom Right
-        results[3] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0)));
 
         // Left
-        results[4] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0)));
 
         // Right
-        results[5] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0)));
 
         // Top Left
-        results[6] = std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0)));
 
         // Top
-        results[7] = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0)));
 
         // Top Right
-        results[8] = std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0));
+        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0)));
 
-        return *std::min_element( results.begin(), results.end() );
+        return result;
     }
 };
 
@@ -90,11 +88,17 @@ HOST DEVICE void LinearSet(T* array, const size_t x, const size_t y, const size_
 
 GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const size_t ConcentrationWidth, const size_t ConcentrationHeight, unsigned int *CountA, unsigned int *CountB);
 GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const size_t VelocityWidth, const size_t VelocityHeight, const double VelocityDX, const double VelocityDY, double *U, double *V);
+
 #ifdef BUILD_CUDA
 GLOBAL void InitializeRandom(unsigned int seed, curandState_t* states);
+#endif
+
+#ifdef BUILD_CUDA
 GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states );
+GLOBAL void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const double ReactionProbability, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states);
 #else
 void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen );
+void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const double ReactionProbability, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen);
 #endif
 
 #endif // BUILD_REACTION_H_
