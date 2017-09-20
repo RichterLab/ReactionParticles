@@ -122,18 +122,15 @@ int main( int argc, char* argv[] ) {
 
         const double P = 0.000001;
 
-        memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-        memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-
-        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
-
-        UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationHeight, CountA, CountB, ConcentrationHeight);
+        UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationWidth, ConcentrationHeight, CountA, CountB);
         for( size_t i = 0; i < ConcentrationHeight; i++ ){
             for( size_t j = 0; j < ConcentrationWidth; j++ ){
                 std::cout << LinearAccess(CountA, i, j, ConcentrationHeight) << ", ";
             }
             std::cout << std::endl;
         }
+
+        Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
 
         double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < (ConcentrationHeight-1); i++ ){

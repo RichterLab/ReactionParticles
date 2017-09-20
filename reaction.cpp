@@ -2,21 +2,24 @@
 
 #include <iostream>
 
-GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const unsigned int ConcentrationHeight, unsigned int *CountA, unsigned int *CountB, size_t CountWidth){
+GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const size_t ConcentrationWidth, const size_t ConcentrationHeight, unsigned int *CountA, unsigned int *CountB){
     int index_start = 0, index_stride = 1;
     #ifdef BUILD_CUDA
         index_start = blockIdx.x * blockDim.x + threadIdx.x;
         index_stride = blockDim.x * gridDim.x;
     #endif
 
+    memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+    memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
+
     for(int particle = 0; particle < Particles; particle += index_stride) {
         const unsigned int ax = std::floor(mParticleA[particle].x / dx);
         const unsigned int ay = (ConcentrationHeight-1) - std::floor(mParticleA[particle].y / dy);
-        LinearSet(CountA, ax, ay, CountWidth, LinearAccess(CountA, ax, ay, CountWidth) + 1);
+        LinearSet(CountA, ax, ay, ConcentrationWidth, LinearAccess(CountA, ax, ay, ConcentrationWidth) + 1);
 
         const unsigned int bx = std::floor(mParticleB[particle].x / dx);
         const unsigned int by = (ConcentrationHeight-1) - std::floor(mParticleB[particle].y / dy);
-        LinearSet(CountB, bx, by, CountWidth, LinearAccess(CountB, bx, by, CountWidth) + 1);
+        LinearSet(CountB, bx, by, ConcentrationWidth, LinearAccess(CountB, bx, by, ConcentrationWidth) + 1);
     }
 }
 

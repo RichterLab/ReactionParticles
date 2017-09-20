@@ -67,10 +67,7 @@ TEST_F( ReactionTest, UpdateConcentration ) {
 	unsigned int *CountA = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
 	unsigned int *CountB = (unsigned int*) malloc(sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
 
-    memset(CountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-	memset(CountB, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth);
-
-	UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationHeight, CountA, CountB, ConcentrationWidth);
+	UpdateConcentration(Particles, mParticleA, mParticleB, ConcentrationDX, ConcentrationDY, ConcentrationWidth, ConcentrationHeight, CountA, CountB);
 
 	unsigned int CountAExpected[40] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
