@@ -73,26 +73,44 @@ GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *
     }
 }
 
+#ifdef BUILD_CUDA
+GLOBAL void InitializeRandom(unsigned int seed, curandState_t* states) {
+      curand_init(seed, /* the seed can be the same for each core, here we pass the time in from the CPU */
+                  blockIdx.x, /* the sequence number should be different for each core (unless you want all
+                                 cores to get the same sequence of numbers for some reason - use thread id! */
+                  0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+                  &states[blockIdx.x]);
+}
+
+GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states ){
+#else
 void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen ){
+#endif
     int index_start = 0, index_stride = 1;
     #ifdef BUILD_CUDA
-        //index_start = blockIdx.x * blockDim.x + threadIdx.x;
-        //index_stride = blockDim.x * gridDim.x;
+        index_start = blockIdx.x * blockDim.x + threadIdx.x;
+        index_stride = blockDim.x * gridDim.x;
+    #endif
+
+    #ifdef BUILD_CUDA
+    #define RANDOM curand_uniform(&states[blockIdx.x])
+    #else
+    #define RANDOM mRandom(gen)
     #endif
 
     for(int particle = index_start; particle < Particles; particle += index_stride) {
         // Particle A
-        mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-        mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+        mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
+        mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
 
-        mParticleA[particle].x = std::fmod(mParticleA[particle].x, FieldWidth);
-        mParticleA[particle].y = std::fmod(mParticleA[particle].y, FieldHeight);
+        mParticleA[particle].x = std::fmod((float)mParticleA[particle].x, (float)FieldWidth);
+        mParticleA[particle].y = std::fmod((float)mParticleA[particle].y, (float)FieldHeight);
 
         // Particle B
-        mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
-        mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * mRandom(gen);
+        mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
+        mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
 
-        mParticleB[particle].x = std::fmod(mParticleB[particle].x, FieldWidth);
-        mParticleB[particle].y = std::fmod(mParticleB[particle].y, FieldHeight);
+        mParticleB[particle].x = std::fmod((float)mParticleB[particle].x, (float)FieldWidth);
+        mParticleB[particle].y = std::fmod((float)mParticleB[particle].y, (float)FieldHeight);
     }
 }

@@ -62,6 +62,11 @@ int main( int argc, char* argv[] ) {
     // Create Random Number Distribution
     std::uniform_real_distribution<double> mRandom;
 
+#ifdef BUILD_CUDA
+    curandState_t* states;
+    cudaMalloc((void**) &states, std::ceil(Particles / (double)CUDA_BLOCK_THREADS) * sizeof(curandState_t));
+#endif
+
     // Setup Velocity Fields
     double *U = (double*)malloc( sizeof(double) * VelocityWidth * VelocityHeight );
     double *V = (double*)malloc( sizeof(double) * VelocityWidth * VelocityHeight );
@@ -168,16 +173,9 @@ int main( int argc, char* argv[] ) {
 #ifdef BUILD_CUDA
         const unsigned int iblocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
         Interpolate<<<iblocks, CUDA_BLOCK_THREADS>>>(Particles, dParticleA, dParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, dU, dV);
-
-        gpuErrchk(cudaMemcpy(mParticleA, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(mParticleB, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
 #else
         Interpolate( Particles, mParticleA, mParticleB, VelocityWidth, VelocityHeight, VelocityDX, VelocityDY, U, V );
 #endif
-
-        for( size_t i = 0; i < Particles; i++ ){
-            std::cout << mParticleA[i].x << " " << mParticleA[i].y << " " << mParticleA[i].u << " " << mParticleA[i].v << std::endl;
-        }
 
         double U2Mean = 0.0, CAMean = 0.0;
         for( size_t i = 0; i < (ConcentrationHeight-1); i++ ){
@@ -199,10 +197,20 @@ int main( int argc, char* argv[] ) {
         std::cout << "MeanCA " << MeanCA[step] << std::endl;
 
         // Update Particle Positions
+#ifdef BUILD_CUDA
+        const unsigned int ublocks = std::ceil(Particles / (double)CUDA_BLOCK_THREADS);
+
+        InitializeRandom<<<ublocks, CUDA_BLOCK_THREADS>>>(1024, states);
+        UpdateParticles<<<ublocks, CUDA_BLOCK_THREADS>>>(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, states);
+
+        gpuErrchk(cudaMemcpy(mParticleA, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+        gpuErrchk(cudaMemcpy(mParticleB, dParticleA, sizeof(Particle) * Particles, cudaMemcpyDeviceToHost));
+#else
         UpdateParticles(Particles, mParticleA, mParticleB, TimeStep, Diffusion, FieldWidth, FieldHeight, mRandom, gen);
-        /*for( size_t particle = 0; particle < Particles; particle++ ){
-            std::cout << mParticleA[particle].x << " " << mParticleA[particle].y << std::endl;
-        }*/
+#endif
+        for( size_t i = 0; i < Particles; i++ ){
+            std::cout << mParticleA[i].x << " " << mParticleA[i].y << " " << mParticleA[i].u << " " << mParticleA[i].v << std::endl;
+        }
 
         // Check if all particles have reacted
         bool isComplete = true;

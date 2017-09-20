@@ -13,6 +13,9 @@
 #define SHARED
 #define CONSTANT
 #else
+#include <curand.h>
+#include <curand_kernel.h>
+
 #define CUDA_BLOCK_THREADS 128
 #define DEVICE __device__
 #define HOST __host__
@@ -87,6 +90,11 @@ HOST DEVICE void LinearSet(T* array, const size_t x, const size_t y, const size_
 
 GLOBAL void UpdateConcentration(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double dx, const double dy, const size_t ConcentrationWidth, const size_t ConcentrationHeight, unsigned int *CountA, unsigned int *CountB);
 GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const size_t VelocityWidth, const size_t VelocityHeight, const double VelocityDX, const double VelocityDY, double *U, double *V);
+#ifdef BUILD_CUDA
+GLOBAL void InitializeRandom(unsigned int seed, curandState_t* states);
+GLOBAL void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, curandState_t* states );
+#else
 void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mParticleB, const double TimeStep, const double Diffusion, const unsigned int FieldWidth, const unsigned int FieldHeight, std::uniform_real_distribution<double> &mRandom, std::mt19937_64 &gen );
+#endif
 
 #endif // BUILD_REACTION_H_
