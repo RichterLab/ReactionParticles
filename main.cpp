@@ -144,13 +144,13 @@ int main( int argc, char* argv[] ) {
     std::vector<double> ReactionChance(Particles);
 
     // Calculate Steps
+    auto start = std::chrono::steady_clock::now();
+    double stepTime = 0.0;
     for( size_t step = 0; step < TimeSteps; step++ ){
-        auto start = std::chrono::steady_clock::now();
+        auto stepStart = std::chrono::steady_clock::now();
 
         TimeStep = std::min(TimeStep * TimeStepEpsilon, TimeStepMax);
         ReactionProbability = ReactionRate * ParticleMass * TimeStep;
-
-        const double P = 0.000001;
 
 #ifdef BUILD_CUDA
         gpuErrchk(cudaMemset(dCountA, 0, sizeof(unsigned int) * ConcentrationHeight * ConcentrationWidth));
@@ -247,7 +247,12 @@ int main( int argc, char* argv[] ) {
         std::cout << "\tConcentration: " << StepConcentration[step+1] << std::endl;
         std::cout << "\tSimulation Total Time: " << StepTime[step+1] << std::endl;
 
-        auto end = std::chrono::steady_clock::now();
-        std::cout << "\tStep Update Time: " << std::chrono::duration<double>(end - start).count() << "s" << std::endl;
+        auto stepEnd = std::chrono::steady_clock::now();
+        stepTime += std::chrono::duration<double>(stepEnd - stepStart).count();
+        std::cout << "\tStep Update Time: " << std::chrono::duration<double>(stepEnd - stepStart).count() << "s" << std::endl;
     }
+
+    auto end = std::chrono::steady_clock::now();
+    std::cout << "\nTotal Time: " << std::chrono::duration<double>(end - start).count() << "s" << std::endl;
+    std::cout << "\tAverage Step Time: " << stepTime / TimeSteps << "s" << std::endl;
 }

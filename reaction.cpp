@@ -135,16 +135,21 @@ void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mPa
     #define RANDOM mRandom(gen)
     #endif
 
+    const double P = 0.000001;
+    const double Cutoff = std::sqrt( -8.0 * Diffusion * TimeStep * std::log( 8.0 * 3.14159 * Diffusion * TimeStep * P / ReactionProbability));
+
     for(int a = index_start; a < Particles; a += index_stride) {
         size_t index = 0; double maximum = -DBL_MAX;
         for( size_t b = 0; b < Particles; b++ ){
             const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
-            const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
-            const double random = probability - RANDOM;
+            if( distance < Cutoff ){
+                const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                const double random = probability - RANDOM;
 
-            if( random > maximum ){
-                index = b;
-                maximum = random;
+                if( random > maximum ){
+                    index = b;
+                    maximum = random;
+                }
             }
         }
 
