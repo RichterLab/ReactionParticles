@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <random>
+#include <chrono>
 
 #include <cxxopts.hpp>
 
@@ -144,7 +145,7 @@ int main( int argc, char* argv[] ) {
 
     // Calculate Steps
     for( size_t step = 0; step < TimeSteps; step++ ){
-        std::cout << "Step " << step << std::endl;
+        auto start = std::chrono::steady_clock::now();
 
         TimeStep = std::min(TimeStep * TimeStepEpsilon, TimeStepMax);
         ReactionProbability = ReactionRate * ParticleMass * TimeStep;
@@ -244,6 +245,9 @@ int main( int argc, char* argv[] ) {
 
         std::cout << "Step: " << step << std::endl;
         std::cout << "\tConcentration: " << StepConcentration[step+1] << std::endl;
-        std::cout << "\tTotal Time: " << StepTime[step+1] << std::endl;
+        std::cout << "\tSimulation Total Time: " << StepTime[step+1] << std::endl;
+
+        auto end = std::chrono::steady_clock::now();
+        std::cout << "\tStep Update Time: " << std::chrono::duration<double>(end - start).count() << "s" << std::endl;
     }
 }
