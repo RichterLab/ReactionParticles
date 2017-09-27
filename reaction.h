@@ -46,31 +46,31 @@ struct Particle{
         const float yDiff = b.y - y;
 
         // Center
-        float result = std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff, 2.0));
+        float result = sqrtf(powf(xDiff, 2.0) + powf(yDiff, 2.0));
 
         // Bottom Left
-        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff-yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff-xLength, 2.0) + powf(yDiff-yLength, 2.0)));
 
         // Bottom
-        result = min(result, std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff-yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff, 2.0) + powf(yDiff-yLength, 2.0)));
 
         // Bottom Right
-        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff-yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff+xLength, 2.0) + powf(yDiff-yLength, 2.0)));
 
         // Left
-        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff, 2.0)));
+        result = min(result, sqrtf(powf(xDiff-xLength, 2.0) + powf(yDiff, 2.0)));
 
         // Right
-        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff, 2.0)));
+        result = min(result, sqrtf(powf(xDiff+xLength, 2.0) + powf(yDiff, 2.0)));
 
         // Top Left
-        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff+yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff-xLength, 2.0) + powf(yDiff+yLength, 2.0)));
 
         // Top
-        result = min(result, std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff+yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff, 2.0) + powf(yDiff+yLength, 2.0)));
 
         // Top Right
-        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff+yLength, 2.0)));
+        result = min(result, sqrtf(powf(xDiff+xLength, 2.0) + powf(yDiff+yLength, 2.0)));
 
         return result;
     }

@@ -112,8 +112,8 @@ void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mPa
     for(int particle = index_start; particle < Particles; particle += index_stride) {
         // Particle A
         if( mParticleA[particle].Alive ){
-            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
-            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleA[particle].x += mParticleA[particle].u * TimeStep + sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleA[particle].y += mParticleA[particle].v * TimeStep + sqrtf(2 * Diffusion * TimeStep) * RANDOM;
 
             mParticleA[particle].x = std::fmod((float)mParticleA[particle].x, (float)FieldWidth);
             mParticleA[particle].y = std::fmod((float)mParticleA[particle].y, (float)FieldHeight);
@@ -121,8 +121,8 @@ void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mPa
 
         // Particle B
         if( mParticleB[particle].Alive ){
-            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
-            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleB[particle].x += mParticleB[particle].u * TimeStep + sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleB[particle].y += mParticleB[particle].v * TimeStep + sqrtf(2 * Diffusion * TimeStep) * RANDOM;
 
             mParticleB[particle].x = std::fmod((float)mParticleB[particle].x, (float)FieldWidth);
             mParticleB[particle].y = std::fmod((float)mParticleB[particle].y, (float)FieldHeight);
@@ -148,7 +148,7 @@ void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mPa
     #endif
 
     const float P = 0.000001;
-    const float Cutoff = std::sqrtf( -8.0 * Diffusion * TimeStep * std::logf( 8.0 * 3.14159 * Diffusion * TimeStep * P / ReactionProbability));
+    const float Cutoff = sqrtf( -8.0 * Diffusion * TimeStep * logf( 8.0 * 3.14159 * Diffusion * TimeStep * P / ReactionProbability));
 
     for(int a = index_start; a < Particles; a += index_stride) {
         if( mParticleA[a].Alive ){
@@ -157,7 +157,7 @@ void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mPa
                 if( mParticleB[b].Alive ) {
                     const float distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
                     if( distance < Cutoff ){
-                        const float probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::expf(-std::powf(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                        const float probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * expf(-powf(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
                         const float random = probability - RANDOM;
 
                         if( random > maximum ){
