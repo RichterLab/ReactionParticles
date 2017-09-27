@@ -41,36 +41,36 @@ struct Particle{
     bool Alive;
     double x, y, u, v;
 
-    HOST DEVICE double PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
-        const double xDiff = b.x - x;
-        const double yDiff = b.y - y;
+    HOST DEVICE float PeriodicDistance(const Particle& b, const double xLength, const double yLength) {
+        const float xDiff = b.x - x;
+        const float yDiff = b.y - y;
 
         // Center
-        double result = std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff, 2.0));
+        float result = std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff, 2.0));
 
         // Bottom Left
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff-yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff-yLength, 2.0)));
 
         // Bottom
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff-yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff-yLength, 2.0)));
 
         // Bottom Right
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff-yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff-yLength, 2.0)));
 
         // Left
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff, 2.0)));
 
         // Right
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff, 2.0)));
 
         // Top Left
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff-xLength, 2.0) + std::pow(yDiff+yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff-xLength, 2.0) + std::powf(yDiff+yLength, 2.0)));
 
         // Top
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff, 2.0) + std::pow(yDiff+yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff, 2.0) + std::powf(yDiff+yLength, 2.0)));
 
         // Top Right
-        result = min((float)result, (float)std::sqrt(std::pow(xDiff+xLength, 2.0) + std::pow(yDiff+yLength, 2.0)));
+        result = min(result, std::sqrtf(std::powf(xDiff+xLength, 2.0) + std::powf(yDiff+yLength, 2.0)));
 
         return result;
     }

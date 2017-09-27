@@ -53,10 +53,10 @@ GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *
             if (posA2.x == VelocityWidth) posA2.x = 0;
             if (posA2.y == -1) posA2.y = VelocityHeight-1;
 
-            const double aa = posA2.x * VelocityDX;
-            const double ab = (VelocityHeight - posA.y - 1) * VelocityDY;
-            const double ac = (VelocityHeight - posA2.y - 1) * VelocityDY;
-            const double ad = posA.x * VelocityDX;
+            const float aa = posA2.x * VelocityDX;
+            const float ab = (VelocityHeight - posA.y - 1) * VelocityDY;
+            const float ac = (VelocityHeight - posA2.y - 1) * VelocityDY;
+            const float ad = posA.x * VelocityDX;
 
             A.u = ((aa-A.x)*(A.y-ab)*LinearAccess(U, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(U, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(U, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(U, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
             A.v = ((aa-A.x)*(A.y-ab)*LinearAccess(V, posA2.y, posA.x, VelocityHeight)+(aa-A.x)*(ac-A.y)*LinearAccess(V, posA.y, posA.x, VelocityHeight)+(A.x-ad)*(ac-A.y)*LinearAccess(V, posA.y, posA2.x, VelocityHeight)+(A.x-ad)*(A.y-ab)*LinearAccess(V, posA2.y, posA2.x, VelocityHeight))/((aa-ad)*(ac-ab));
@@ -71,10 +71,10 @@ GLOBAL void Interpolate(const size_t Particles, Particle *mParticleA, Particle *
             if (posB2.x == VelocityWidth) posB2.x = 0;
             if (posB2.y == -1) posB2.y = VelocityHeight-1;
 
-            const double ba = posB2.x * VelocityDX;
-            const double bb = (VelocityHeight - posB.y - 1) * VelocityDY;
-            const double bc = (VelocityHeight - posB2.y - 1) * VelocityDY;
-            const double bd = posB.x * VelocityDX;
+            const float ba = posB2.x * VelocityDX;
+            const float bb = (VelocityHeight - posB.y - 1) * VelocityDY;
+            const float bc = (VelocityHeight - posB2.y - 1) * VelocityDY;
+            const float bd = posB.x * VelocityDX;
 
             B.u = ((ba-B.x)*(B.y-bb)*LinearAccess(U, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(U, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(U, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(U, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
             B.v = ((ba-B.x)*(B.y-bb)*LinearAccess(V, posB2.y, posB.x, VelocityHeight)+(ba-B.x)*(bc-B.y)*LinearAccess(V, posB.y, posB.x, VelocityHeight)+(B.x-bd)*(bc-B.y)*LinearAccess(V, posB.y, posB2.x, VelocityHeight)+(B.x-bd)*(B.y-bb)*LinearAccess(V, posB2.y, posB2.x, VelocityHeight))/((ba-bd)*(bc-bb));
@@ -112,8 +112,8 @@ void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mPa
     for(int particle = index_start; particle < Particles; particle += index_stride) {
         // Particle A
         if( mParticleA[particle].Alive ){
-            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
-            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleA[particle].x += mParticleA[particle].u * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleA[particle].y += mParticleA[particle].v * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
 
             mParticleA[particle].x = std::fmod((float)mParticleA[particle].x, (float)FieldWidth);
             mParticleA[particle].y = std::fmod((float)mParticleA[particle].y, (float)FieldHeight);
@@ -121,8 +121,8 @@ void UpdateParticles(const size_t Particles, Particle *mParticleA, Particle *mPa
 
         // Particle B
         if( mParticleB[particle].Alive ){
-            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
-            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrt(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleB[particle].x += mParticleB[particle].u * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
+            mParticleB[particle].y += mParticleB[particle].v * TimeStep + std::sqrtf(2 * Diffusion * TimeStep) * RANDOM;
 
             mParticleB[particle].x = std::fmod((float)mParticleB[particle].x, (float)FieldWidth);
             mParticleB[particle].y = std::fmod((float)mParticleB[particle].y, (float)FieldHeight);
@@ -147,18 +147,18 @@ void UpdateReactions(const size_t Particles, Particle *mParticleA, Particle *mPa
     #define RANDOM mRandom(gen)
     #endif
 
-    const double P = 0.000001;
-    const double Cutoff = std::sqrt( -8.0 * Diffusion * TimeStep * std::log( 8.0 * 3.14159 * Diffusion * TimeStep * P / ReactionProbability));
+    const float P = 0.000001;
+    const float Cutoff = std::sqrtf( -8.0 * Diffusion * TimeStep * std::logf( 8.0 * 3.14159 * Diffusion * TimeStep * P / ReactionProbability));
 
     for(int a = index_start; a < Particles; a += index_stride) {
         if( mParticleA[a].Alive ){
-            size_t index = 0; double maximum = -DBL_MAX;
+            size_t index = 0; float maximum = -FLT_MAX;
             for( size_t b = 0; b < Particles; b++ ){
                 if( mParticleB[b].Alive ) {
-                    const double distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
+                    const float distance = mParticleA[a].PeriodicDistance(mParticleB[b], FieldWidth, FieldHeight);
                     if( distance < Cutoff ){
-                        const double probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::exp(-std::pow(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
-                        const double random = probability - RANDOM;
+                        const float probability = ReactionProbability * 1.0 / (4.0 * 3.14159 * (2.0 * Diffusion) * TimeStep) * std::expf(-std::powf(distance, 2.0) / (4.0 * (2.0 * Diffusion) * TimeStep));
+                        const float random = probability - RANDOM;
 
                         if( random > maximum ){
                             index = b;
