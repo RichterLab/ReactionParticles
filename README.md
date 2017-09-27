@@ -6,13 +6,18 @@ Code to simulate particle's movement through random walk and annihilation throug
 ```
 $ module load cmake/3.6.3
 $ module load gcc/5.2.0
+$ module load cuda/8.0
 $ git clone https://github.com/RichterLab/ReactionParticles.git
 $ cd ReactionParticles
 $ mkdir build
 $ cd build
-$ cmake ..
+$ cmake -DBUILD_CUDA=ON ..
 $ make
 ```
+
+## Branches
+To switch between GPU and CPU versions of the code, you can select the branch with ```git checkout``` before the ```cmake ..``` step.
+The GPU branch is ```gpu_cuda``` and the CPU branch is ```master```
 
 ## Usage
 
